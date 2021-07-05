@@ -272,7 +272,7 @@ int main() {
         int index = i * 4;
         positionData[index] = ((rand()%2000)-1000)/(float)2000;
         positionData[index+1] = ((rand()%2000)-1000)/(float)2000;
-        positionData[index+2] = ((rand()%2000)-1000)/(float)2000;
+        positionData[index+2] = 0;
         positionData[index+3] = 1;
     }
 

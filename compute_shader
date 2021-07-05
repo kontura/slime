@@ -16,7 +16,7 @@ void main() {
        vec3 other = positions[i].xyz;
        vec3 diff = position - other;
        float invdist = 1.0/(length(diff)+0.001);
-       acceleration -= diff*0.1*invdist*invdist*invdist;
+       acceleration -= diff*0.00001*invdist*invdist*invdist;
    }
    velocities[index] = vec4(velocity+dt*acceleration,0);
 }
