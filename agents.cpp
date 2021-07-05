@@ -97,10 +97,13 @@ int main() {
 
     std::string fragment_source =
         "#version 330\n"
+        "uniform sampler2D tex;\n" // texture uniform
+        "in vec2 ftexcoord;\n"
         "in vec4 fcolor;\n"
         "layout(location = 0) out vec4 FragColor;\n"
         "void main() {\n"
-        "   FragColor = vec4(1,1,1,1);\n"
+        //"   FragColor = vec4(0,1,1,1);\n"
+        "   FragColor = texture(tex, ftexcoord);\n"
         "}\n";
 
     // program and shader handles
@@ -144,6 +147,9 @@ int main() {
     // link the program and check for errors
     glLinkProgram(shader_program);
     check_program_link_status(shader_program);
+
+    // get texture uniform location
+    GLint texture_location = glGetUniformLocation(shader_program, "tex");
 
     std::string acceleration_source = read_file("../compute_shader");
 
@@ -232,6 +238,31 @@ int main() {
 
     //TODO(amatej): why is this so slow? rather why it lags the pc when a tad larger?
     //          ->> its because we iterate from every elem to every elem
+    //create textures where agents will draw and that will ultimately be displayed
+    // texture handle
+    GLuint texture;
+    // generate texture
+    glGenTextures(1, &texture);
+    // bind the texture
+    glBindTexture(GL_TEXTURE_2D, texture);
+    // create some image data
+    std::vector<GLubyte> image(4*width*height);
+    for(int j = 0;j<height;++j) {
+        for(int i = 0;i<width;++i) {
+            size_t index = j*width + i;
+            image[4*index + 0] = 0xFF*(j/10%2)*(i/10%2); // R
+            image[4*index + 1] = 0xFF*(j/13%2)*(i/13%2); // G
+            image[4*index + 2] = 0xFF*(j/17%2)*(i/17%2); // B
+            image[4*index + 3] = 0xFF;                   // A
+        }
+    }
+    // set texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // set texture content
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &image[0]);
 
     // randomly place particles in a cube
     float positionData[4*PARTICLES_COUNT];
@@ -312,6 +343,13 @@ int main() {
         // use the shader program
         glUseProgram(shader_program);
 
+        // bind texture to texture unit 0
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        
+        // set texture uniform
+        glUniform1i(texture_location, 0);
+
         // bind the current vao
         glBindVertexArray(vao);
 
@@ -336,6 +374,7 @@ int main() {
     }
 
     // delete the created objects
+    glDeleteTextures(1, &texture);
 
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &positions_vbo);
