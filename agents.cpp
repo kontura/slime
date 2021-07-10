@@ -10,9 +10,14 @@
 #include <cmath>
 #include <fstream>
 
+#include "pulseAudio.hpp"
+
 #define PARTICLES_COUNT 1024
 #define WIDTH 1920
 #define HEIGHT 1080
+
+#define EVAPORATE_SPEED 0.08
+#define DIFFUSE_SPEED 30.2
 
 
 std::string read_file(std::string path) {
@@ -93,7 +98,7 @@ GLFWwindow *initializeOpenGl() {
     return window;
 }
 
-GLuint generateRenderProgram() {
+GLuint generateRenderProgram(int draw_texture_slot) {
     GLuint program = glCreateProgram();
 
     // shader source code
@@ -142,7 +147,7 @@ GLuint generateRenderProgram() {
 
     glLinkProgram(program);
     glUseProgram(program);
-    glUniform1i(glGetUniformLocation(program, "tex"), 0);
+    glUniform1i(glGetUniformLocation(program, "tex"), draw_texture_slot);
 
     // link the program and check for errors
     check_program_link_status(program);
@@ -182,16 +187,18 @@ GLuint generateRenderProgram() {
     // fill with data
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint)*2*3, indexData, GL_STATIC_DRAW);
 
+    glDeleteShader(fragment_shader);
+    glDeleteShader(vertex_shader);
 
     checkOpenGLErrors("generateRenderProgram");
 
     return program;
 }
 
-GLuint generateTexture() {
+GLuint generateTexture(int texture_slot) {
     GLuint texture_handle;
     glGenTextures(1, &texture_handle);
-    glActiveTexture(GL_TEXTURE0);
+    glActiveTexture(GL_TEXTURE0 + texture_slot);
     glBindTexture(GL_TEXTURE_2D, texture_handle);
 
     // set texture parameters
@@ -200,22 +207,22 @@ GLuint generateTexture() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     // set texture content
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, WIDTH, HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
-    glBindImageTexture(0, texture_handle, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_INT, NULL);
+    glBindImageTexture(texture_slot, texture_handle, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
 
     checkOpenGLErrors("generateTexture");
 
     return texture_handle;
 }
 
-GLuint generateComputeProgram() {
+GLuint generateComputeProgram(const char* path) {
     GLuint program = glCreateProgram();
     GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
 
-    std::string acceleration_source = read_file("../compute_shader");
+    std::string shader_source = read_file(path);
     // create and compiler vertex shader
-    const char *source = acceleration_source.c_str();
-    int length = acceleration_source.size();
+    const char *source = shader_source.c_str();
+    int length = shader_source.size();
     glShaderSource(compute_shader, 1, &source, &length);
     glCompileShader(compute_shader);
     if(!check_shader_compile_status(compute_shader)) {
@@ -229,82 +236,27 @@ GLuint generateComputeProgram() {
     glLinkProgram(program);
     check_program_link_status(program);
 
+    glDeleteShader(compute_shader);
     checkOpenGLErrors("generateComputeProgram");
     return program;
 }
 
 int main() {
+
+    PulseAudioContext PACtx = initializeSimplePulseAudio();
+    float buffer_left_sound[BUFFER_SIZE];
+    float buffer_right_sound[BUFFER_SIZE];
     GLFWwindow *window = initializeOpenGl();
 
-    GLuint texture = generateTexture();
+    int texture_slot = 0;
+    GLuint texture = generateTexture(texture_slot);
     // program and shader handles
-    GLuint shader_program = generateRenderProgram();
-
-    // get texture uniform location
-    GLint texture_location = glGetUniformLocation(shader_program, "tex");
-
+    GLuint shader_program = generateRenderProgram(texture_slot);
 
     // create program
-    GLuint acceleration_program = generateComputeProgram();
-
-
-    // the integrate shader does the second part of the euler integration
-    std::string integrate_source =
-        "#version 430\n"
-        "layout(local_size_x=256) in;\n"
-
-        "layout(location = 0) uniform float dt;\n"
-        "layout(std430, binding=0) buffer pblock { vec4 positions[]; };\n"
-        "layout(std430, binding=1) buffer vblock { vec4 velocities[]; };\n"
-
-        "void main() {\n"
-        "   int index = int(gl_GlobalInvocationID);\n"
-        "   vec4 position = positions[index];\n"
-        "   vec4 velocity = velocities[index];\n"
-        "   position.xyz += dt*velocity.xyz;\n"
-        "   if (position.x > 0.5) {"
-        "       position.x = 0.5;"
-        "       velocities[index] = -velocities[index];"
-        "   }"
-        "   if (position.x < -0.5) {"
-        "       position.x = -0.5;"
-        "   }"
-        "   if (position.y > 0.5) {"
-        "       position.y = 0.5;"
-        "       velocities[index] = -velocities[index];"
-        "   }"
-        "   if (position.y < -0.5) {"
-        "       position.y = -0.5;"
-        "   }"
-        "   position.z = 0;"
-        "   positions[index] = position;\n"
-        "}\n";
-
-    // program and shader handles
-    GLuint integrate_program, integrate_shader;
-
-    // create and compiler vertex shader
-    integrate_shader = glCreateShader(GL_COMPUTE_SHADER);
-    const char *source = integrate_source.c_str();
-    int length = integrate_source.size();
-    glShaderSource(integrate_shader, 1, &source, &length);
-    glCompileShader(integrate_shader);
-    if(!check_shader_compile_status(integrate_shader)) {
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return 1;
-    }
-
-    // create program
-    integrate_program = glCreateProgram();
-
-    // attach shaders
-    glAttachShader(integrate_program, integrate_shader);
-
-    // link the program and check for errors
-    glLinkProgram(integrate_program);
-    check_program_link_status(integrate_program);
-
+    GLuint acceleration_program = generateComputeProgram("../compute_shader.hlsl");
+    GLuint integrate_program = generateComputeProgram("../integrade_shader.hlsl");
+    GLuint evaporate_program = generateComputeProgram("../evaporate_shader.hlsl");
 
     // CREATE INIT DATA
 
@@ -333,10 +285,6 @@ int main() {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, positions_vbo);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float)*4*PARTICLES_COUNT, positionData, GL_STATIC_DRAW);
 
-    // set up generic attrib pointers
-    //glEnableVertexAttribArray(0);
-    //glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (char*)0 + 0*sizeof(GLfloat));
-
     //This is likely for compute shaders
     const GLuint ssbos[] = {positions_vbo, velocities_vbo};
     glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 2, ssbos);
@@ -344,30 +292,42 @@ int main() {
     // physical parameters
     float dt = 1.0f/60.0f;
 
-    //TODO(amatej): if I want to have the generateComputeProgram general (I need to pass in
-    //path to the compute shader it self) and also set uniforms outside?
     // setup uniforms
     glUseProgram(acceleration_program);
-    glUniform1f(0, dt);
-    glUniform1i(glGetUniformLocation(acceleration_program, "destTest"), 0);
+    glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
+    glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot);
 
     glUseProgram(integrate_program);
-    glUniform1f(0, dt);
+    glUniform1f(glGetUniformLocation(integrate_program, "dt"), dt);
+    glUniform1i(glGetUniformLocation(integrate_program, "destTex"), texture_slot);
+
+    glUseProgram(evaporate_program);
+    glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
+    glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot);
+    glUniform1f(glGetUniformLocation(evaporate_program, "evaporate_speed"), EVAPORATE_SPEED);
+    glUniform1f(glGetUniformLocation(evaporate_program, "diffuse_speed"), DIFFUSE_SPEED);
 
     // we are blending so no depth testing
     glDisable(GL_DEPTH_TEST);
 
     // enable blending
     glEnable(GL_BLEND);
-    //  and set the blend function to result = 1*source + 1*destination
     glBlendFunc(GL_ONE, GL_ONE);
 
     GLuint query;
     glGenQueries(1, &query);
 
     while(!glfwWindowShouldClose(window)) {
+        readNextPCMFromSimplePulseAudio(PACtx, buffer_left_sound, buffer_right_sound);
+        float max = -9;
+        for (int i=0; i<BUFFER_SIZE; i++) {
+            if (max < buffer_left_sound[i]) {
+                max = buffer_left_sound[i];
+            }
+        }
+        printf("%f\n", max);
+
         glfwPollEvents();
-        //std::cout << positionData[1000].y << std::endl;
 
         glBeginQuery(GL_TIME_ELAPSED, query);
 
@@ -377,17 +337,16 @@ int main() {
         glEndQuery(GL_TIME_ELAPSED);
 
         glUseProgram(integrate_program);
-
         glDispatchCompute(PARTICLES_COUNT/256, 1, 1);
+
+        glUseProgram(evaporate_program);
+        glDispatchCompute(WIDTH/16, HEIGHT/16, 1);
 
         // clear first
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // use the shader program
         glUseProgram(shader_program);
-
-        // set texture uniform
-        glUniform1i(texture_location, 0);
 
         // draw
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -411,17 +370,13 @@ int main() {
     glDeleteBuffers(1, &positions_vbo);
     glDeleteBuffers(1, &velocities_vbo);
 
-//    glDetachShader(shader_program, vertex_shader);
-//    glDetachShader(shader_program, fragment_shader);
-//    glDeleteShader(vertex_shader);
-//    glDeleteShader(fragment_shader);
-//    glDeleteProgram(shader_program);
-
-    //glDetachShader(acceleration_program, acceleration_shader);
-    //glDeleteShader(acceleration_shader);
     glDeleteProgram(acceleration_program);
+    glDeleteProgram(integrate_program);
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    destroySimplePulseAudio(PACtx);
+
     return 0;
 }
