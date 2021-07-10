@@ -254,9 +254,9 @@ int main() {
     GLuint shader_program = generateRenderProgram(texture_slot);
 
     // create program
-    GLuint acceleration_program = generateComputeProgram("../compute_shader.hlsl");
-    GLuint integrate_program = generateComputeProgram("../integrade_shader.hlsl");
-    GLuint evaporate_program = generateComputeProgram("../evaporate_shader.hlsl");
+    GLuint acceleration_program = generateComputeProgram("../compute_shader.glsl");
+    GLuint integrate_program = generateComputeProgram("../integrade_shader.glsl");
+    GLuint evaporate_program = generateComputeProgram("../evaporate_shader.glsl");
 
     // CREATE INIT DATA
 
