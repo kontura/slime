@@ -1,20 +1,23 @@
 #version 430
 
-layout(local_size_x=16, local_size_y=16) in;
+layout(local_size_x=32, local_size_y=32) in;
 
 layout(location = 0) uniform float dt;
 layout(std430, binding=0) buffer pblock { vec4 positions[]; };
 layout(std430, binding=1) buffer vblock { vec4 velocities[]; };
 
-layout (location = 1, rgba8) uniform image2D destTex;
+layout (location = 4, rgba8) readonly uniform image2D srcTex;
+layout (location = 1, rgba8) writeonly uniform image2D destTex;
 
 layout(location = 2) uniform float evaporate_speed;
 layout(location = 3) uniform float diffuse_speed;
+layout (location = 5) uniform int width;
+layout (location = 6) uniform int height;
 
 void main() {
     ivec2 id = ivec2(gl_GlobalInvocationID.xy);
 
-    vec4 originalValue = imageLoad(destTex, id);
+    vec4 originalValue = imageLoad(srcTex, id);
 
     vec4 sum = vec4(0.0);
     for (int offsetX = -1; offsetX <= 1; offsetX++) {
@@ -22,9 +25,9 @@ void main() {
             int sampleX = id.x + offsetX;
             int sampleY = id.y + offsetY;
 
-            //if (sampleX >= 0 && sampleX < width && sampleY >= 0 && sampleY < height) {
-                sum += imageLoad(destTex, ivec2(sampleX, sampleY));
-            //}
+            if (sampleX >= 0 && sampleX <= width && sampleY >= 0 && sampleY <= height) {
+                sum += imageLoad(srcTex, ivec2(sampleX, sampleY));
+            }
         }
     }
 

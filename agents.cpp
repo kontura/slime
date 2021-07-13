@@ -12,14 +12,14 @@
 
 #include "pulseAudio.hpp"
 
-#define PARTICLES_COUNT 1024*10
-#define WIDTH 1920
-#define HEIGHT 1080
+#define AGENTS_COUNT 1024 * 512
+#define WIDTH 2560
+#define HEIGHT 1440
 
-#define EVAPORATE_SPEED 0.2
-#define DIFFUSE_SPEED 33.2
-#define MOVE_SPEED 40.0
-#define TURN_SPEED 15.0
+#define EVAPORATE_SPEED 0.20
+#define DIFFUSE_SPEED 23.2
+#define MOVE_SPEED 200.0
+#define TURN_SPEED 14.0
 
 
 std::string read_file(std::string path) {
@@ -249,6 +249,18 @@ struct Agent {
     float type;
 };
 
+static float fps(double *nbFrames, double *lastTime) {
+    // Measure speed
+    double currentTime = glfwGetTime();
+    double delta = currentTime - *lastTime;
+    (*nbFrames)++;
+    if ( delta >= 1.0 ){ // If last cout was more than 1 sec ago
+        *nbFrames = 0;
+        *lastTime += 1.0;
+    }
+    return (*nbFrames)/delta;
+}
+
 int main() {
 
     PulseAudioContext PACtx = initializeSimplePulseAudio();
@@ -256,26 +268,29 @@ int main() {
     float buffer_right_sound[BUFFER_SIZE];
     GLFWwindow *window = initializeOpenGl();
 
-    int texture_slot = 0;
-    int texture_slot2 = 1;
-    GLuint texture = generateTexture(texture_slot);
-    GLuint texture2 = generateTexture(texture_slot2);
+    int texture_slot0 = 0;
+    int texture_slot1 = 1;
+    GLuint texture0 = generateTexture(texture_slot0);
+    GLuint texture1 = generateTexture(texture_slot1);
     // program and shader handles
     GLuint shader_program = generateRenderProgram();
-    glUniform1i(glGetUniformLocation(shader_program, "tex"), texture_slot);
+    glUniform1i(glGetUniformLocation(shader_program, "tex"), texture_slot1);
 
     // create program
     GLuint acceleration_program = generateComputeProgram("../compute_shader.glsl");
     GLuint evaporate_program = generateComputeProgram("../evaporate_shader.glsl");
+    GLuint copy_program = generateComputeProgram("../copy_shader.glsl");
 
     // CREATE INIT DATA
 
     // randomly place agents
-    Agent AgentsData[PARTICLES_COUNT];
-    for(int i = 0;i<PARTICLES_COUNT;++i) {
+    Agent *AgentsData = (Agent *) malloc(AGENTS_COUNT*4*sizeof(float));
+    for(int i = 0;i<AGENTS_COUNT;++i) {
         // initial position
-        AgentsData[i].x = (rand()%1920);
-        AgentsData[i].y = (rand()%1080);
+        //AgentsData[i].x = (rand()%WIDTH);
+        //AgentsData[i].y = (rand()%HEIGHT);
+        AgentsData[i].x = WIDTH/2;
+        AgentsData[i].y = HEIGHT/2;
         AgentsData[i].angle = (rand()%1000)/1000.0f * 3.14f * 2.0f;
         //printf("angle data: %f \n", angleData[i]);
         //printf("positions data: %f x %f\n", positionData[index], positionData[index+1]);
@@ -288,7 +303,7 @@ int main() {
 
     //ORIGINAL STUFF FOR AGENTS
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, agents_vbo);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float)*4*PARTICLES_COUNT, AgentsData, GL_STATIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float)*4*AGENTS_COUNT, AgentsData, GL_STATIC_DRAW);
 
     //This is likely for compute shaders
     const GLuint ssbos[] = {agents_vbo};
@@ -299,18 +314,24 @@ int main() {
 
     // setup uniforms
     glUseProgram(acceleration_program);
-    glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
-    glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot);
+    glUniform1i(glGetUniformLocation(acceleration_program, "srcTex"), texture_slot1);
+    glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot0);
     glUniform1i(glGetUniformLocation(acceleration_program, "width"), WIDTH);
     glUniform1i(glGetUniformLocation(acceleration_program, "height"), HEIGHT);
     glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), MOVE_SPEED);
     glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), TURN_SPEED);
 
     glUseProgram(evaporate_program);
-    glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
-    glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot);
+    glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot0);
+    glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot1);
     glUniform1f(glGetUniformLocation(evaporate_program, "evaporate_speed"), EVAPORATE_SPEED);
     glUniform1f(glGetUniformLocation(evaporate_program, "diffuse_speed"), DIFFUSE_SPEED);
+    glUniform1i(glGetUniformLocation(evaporate_program, "width"), WIDTH);
+    glUniform1i(glGetUniformLocation(evaporate_program, "height"), HEIGHT);
+
+    glUseProgram(copy_program);
+    glUniform1i(glGetUniformLocation(copy_program, "srcTex"), texture_slot1);
+    glUniform1i(glGetUniformLocation(copy_program, "destTex"), texture_slot0);
 
     // we are blending so no depth testing
     glDisable(GL_DEPTH_TEST);
@@ -319,34 +340,56 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
 
-    GLuint query;
-    glGenQueries(1, &query);
+    //GLuint query;
+    //glGenQueries(1, &query);
 
+    double nbFrames = 0;
+    double lastTime = 0;
+
+    unsigned char cava_input[30];
     while(!glfwWindowShouldClose(window)) {
-        readNextPCMFromSimplePulseAudio(PACtx, buffer_left_sound, buffer_right_sound);
-        float max = -9;
-        for (int i=0; i<BUFFER_SIZE; i++) {
-            if (max < buffer_left_sound[i]) {
-                max = buffer_left_sound[i];
-            }
+        //glBeginQuery(GL_TIME_ELAPSED, query);
+       // readNextPCMFromSimplePulseAudio(PACtx, buffer_left_sound, buffer_right_sound);
+       // float max = -9;
+       // for (int i=0; i<BUFFER_SIZE; i++) {
+       //     if (max < buffer_left_sound[i]) {
+       //         max = buffer_left_sound[i];
+       //     }
+       // }
+        int vals_read = 30;
+        while (vals_read == 30){
+            vals_read = read(STDIN_FILENO, cava_input, 30);
         }
-        max *= 4;
-        //printf("%f\n", max);
+
+        unsigned char max = 0;
+        for (int i=0;i<30;i++) {
+            if (max < cava_input[i]) {
+                max = cava_input[i];
+            }
+           // printf("%u ", cava_input[i]);
+        }
+        //for (unsigned int i=0;i<max;i++) {
+        //    printf("=");
+        //}
+        float float_max = (float) max /(float) 255;
+        //printf("%f\n", float_max);
+        printf("\n");
+
 
         glfwPollEvents();
 
-        glBeginQuery(GL_TIME_ELAPSED, query);
 
         glUseProgram(acceleration_program);
-        glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), 0.3 + max*MOVE_SPEED);
-        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), 0.6 + max*TURN_SPEED);
-        glDispatchCompute(PARTICLES_COUNT/256, 1, 1);
-
-        glEndQuery(GL_TIME_ELAPSED);
-
-        glDispatchCompute(PARTICLES_COUNT/256, 1, 1);
+        glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), 0.3 + float_max*MOVE_SPEED);
+        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), TURN_SPEED - float_max*TURN_SPEED);
+        glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
+        glDispatchCompute(AGENTS_COUNT/256, 1, 1);
 
         glUseProgram(evaporate_program);
+        glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
+        glDispatchCompute(WIDTH/32, HEIGHT/32, 1);
+
+        glUseProgram(copy_program);
         glDispatchCompute(WIDTH/16, HEIGHT/16, 1);
 
         // clear first
@@ -362,26 +405,34 @@ int main() {
 
         // finally swap buffers
         glfwSwapBuffers(window);
+        //glEndQuery(GL_TIME_ELAPSED);
 
-        {
-            GLuint64 result;
-            glGetQueryObjectui64v(query, GL_QUERY_RESULT, &result);
-            //std::cout << result*1.e-6 << " ms/frame" << std::endl;
-        }
+        //{
+        //    GLuint64 result;
+        //    glGetQueryObjectui64v(query, GL_QUERY_RESULT, &result);
+        //    std::cout << result*1.e-6 << " ms/frame" << std::endl;
+        //}
+        float fps_v = fps(&nbFrames, &lastTime);
+        //printf("fps: %f\n", fps_v);
+        float dt = 1.0f/fps_v;
     }
 
     // delete the created objects
-    glDeleteTextures(1, &texture);
+    glDeleteTextures(1, &texture0);
+    glDeleteTextures(1, &texture1);
 
     //glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &agents_vbo);
 
     glDeleteProgram(acceleration_program);
+    glDeleteProgram(evaporate_program);
+    glDeleteProgram(copy_program);
 
     glfwDestroyWindow(window);
     glfwTerminate();
 
     destroySimplePulseAudio(PACtx);
+    free(AgentsData);
 
     return 0;
 }
