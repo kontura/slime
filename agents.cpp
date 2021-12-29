@@ -341,6 +341,8 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
 
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+
     //GLuint query;
     //glGenQueries(1, &query);
 
