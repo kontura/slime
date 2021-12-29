@@ -12,6 +12,7 @@
 #include <fstream>
 
 #include "pulseAudio.hpp"
+#include "cava.hpp"
 
 #define AGENTS_COUNT 1024 * 512
 #define WIDTH 2560
@@ -262,6 +263,20 @@ static float fps(double *nbFrames, double *lastTime) {
     return (*nbFrames)/delta;
 }
 
+int sensitivity_input = 0;
+int sensitivity = 20;
+
+static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GL_TRUE);
+
+    if (key == GLFW_KEY_J && action == GLFW_PRESS)
+        sensitivity_input--;
+    if (key == GLFW_KEY_K && action == GLFW_PRESS)
+        sensitivity_input++;
+
+}
+
 int main() {
 
     PulseAudioContext PACtx = initializeSimplePulseAudio();
@@ -349,6 +364,11 @@ int main() {
     double nbFrames = 0;
     double lastTime = 0;
 
+    rewriteConfig(20);
+    reloadConfig();
+
+    glfwSetKeyCallback(window, key_callback);
+
     unsigned char cava_input[30];
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
@@ -362,6 +382,19 @@ int main() {
         int vals_read = 30;
         while (vals_read == 30){
             vals_read = read(STDIN_FILENO, cava_input, 30);
+        if (sensitivity_input > 0) {
+            sensitivity += 5;
+            sensitivity_input--;
+            rewriteConfig(sensitivity);
+            printf("setting sensitivity: %i\n", sensitivity);
+            reloadConfig();
+        }
+        if (sensitivity_input < 0) {
+            sensitivity -= 5;
+            sensitivity_input++;
+            rewriteConfig(sensitivity);
+            printf("setting sensitivity: %i\n", sensitivity);
+            reloadConfig();
         }
 
         unsigned char max = 0;
