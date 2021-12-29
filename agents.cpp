@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <fstream>
+#include <fcntl.h>
 
 #include "pulseAudio.hpp"
 #include "cava.hpp"
@@ -364,6 +365,9 @@ int main() {
     double nbFrames = 0;
     double lastTime = 0;
 
+    const char *pipe_file = "./cava_fifo";
+    int fd = open(pipe_file, O_RDONLY);
+
     rewriteConfig(20);
     reloadConfig();
 
@@ -372,16 +376,11 @@ int main() {
     unsigned char cava_input[30];
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
-       // readNextPCMFromSimplePulseAudio(PACtx, buffer_left_sound, buffer_right_sound);
-       // float max = -9;
-       // for (int i=0; i<BUFFER_SIZE; i++) {
-       //     if (max < buffer_left_sound[i]) {
-       //         max = buffer_left_sound[i];
-       //     }
-       // }
         int vals_read = 30;
         while (vals_read == 30){
-            vals_read = read(STDIN_FILENO, cava_input, 30);
+            vals_read = read(fd, cava_input, 30);
+        }
+
         if (sensitivity_input > 0) {
             sensitivity += 5;
             sensitivity_input--;
@@ -407,10 +406,21 @@ int main() {
         //for (unsigned int i=0;i<max;i++) {
         //    printf("=");
         //}
-        float float_max = (float) max /(float) 255;
-        //printf("%f\n", float_max);
-        printf("\n");
-
+        float float_max = (float)max / (float)5120* 8;
+        //printf("\n");
+        //printf("max1: %f\n", float_max);
+        //printf("passing to shader: %f\n\n", 0.3f + float_max*MOVE_SPEED);
+        max = 0;
+        for (int i=15;i<30;i++) {
+            if (max < cava_input[i]) {
+                max = cava_input[i];
+            }
+           // printf("%u ", cava_input[i]);
+        }
+        //for (unsigned int i=0;i<max;i++) {
+        //    printf("=");
+        //}
+        float float_max_type2 = (float) max /(float) 255;
 
         glfwPollEvents();
 
