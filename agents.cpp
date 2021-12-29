@@ -3,6 +3,7 @@
 
 #include <GLFW/glfw3.h>
 
+#include <unistd.h>
 #include <iostream>
 #include <string>
 #include <vector>
