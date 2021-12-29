@@ -25,9 +25,9 @@ void main() {
             int sampleX = id.x + offsetX;
             int sampleY = id.y + offsetY;
 
-            if (sampleX >= 0 && sampleX <= width && sampleY >= 0 && sampleY <= height) {
+            //if (sampleX >= 0 && sampleX <= width && sampleY >= 0 && sampleY <= height) {
                 sum += imageLoad(srcTex, ivec2(sampleX, sampleY));
-            }
+            //}
         }
     }
 

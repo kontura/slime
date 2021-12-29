@@ -15,14 +15,18 @@
 #include "pulseAudio.hpp"
 #include "cava.hpp"
 
-#define AGENTS_COUNT 1024 * 512
-#define WIDTH 2560
-#define HEIGHT 1440
+#define AGENTS_COUNT 1024 * 1024
+#define WIDTH 1280
+#define HEIGHT 720
 
 #define EVAPORATE_SPEED 0.20
-#define DIFFUSE_SPEED 23.2
-#define MOVE_SPEED 200.0
-#define TURN_SPEED 14.0
+#define DIFFUSE_SPEED 33.2
+#define MOVE_SPEED 20.0
+#define TURN_SPEED 5.0
+
+#define SENSOR_ANGLE_SPACING 1
+#define SENSOR_OFFSET_DST 5
+#define SENSOR_SIZE 2
 
 
 std::string read_file(std::string path) {
@@ -308,7 +312,10 @@ int main() {
         //AgentsData[i].y = (rand()%HEIGHT);
         AgentsData[i].x = WIDTH/2;
         AgentsData[i].y = HEIGHT/2;
-        AgentsData[i].angle = (rand()%1000)/1000.0f * 3.14f * 2.0f;
+        AgentsData[i].angle = 0 * 3.14f * 2.0f;
+        if ((float)i > (float)AGENTS_COUNT/2.0f) {
+            AgentsData[i].type = 2;
+        }
         //printf("angle data: %f \n", angleData[i]);
         //printf("positions data: %f x %f\n", positionData[index], positionData[index+1]);
     }
@@ -337,6 +344,11 @@ int main() {
     glUniform1i(glGetUniformLocation(acceleration_program, "height"), HEIGHT);
     glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), MOVE_SPEED);
     glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), TURN_SPEED);
+    glUniform1f(glGetUniformLocation(acceleration_program, "agentsCount"), AGENTS_COUNT );
+
+    glUniform1f(glGetUniformLocation(acceleration_program, "sensorAngleSpacing"), SENSOR_ANGLE_SPACING);
+    glUniform1f(glGetUniformLocation(acceleration_program, "sensorOffsetDst"), SENSOR_OFFSET_DST);
+    glUniform1f(glGetUniformLocation(acceleration_program, "sensorSize"), SENSOR_SIZE);
 
     glUseProgram(evaporate_program);
     glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot0);
@@ -426,10 +438,12 @@ int main() {
 
 
         glUseProgram(acceleration_program);
-        glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), 0.3 + float_max*MOVE_SPEED);
-        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), TURN_SPEED - float_max*TURN_SPEED);
+        glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), 0.3f + float_max*MOVE_SPEED);
+        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), 0.6f - float_max*TURN_SPEED);
+        glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeedType2"), 0.3 + float_max_type2*MOVE_SPEED);
+        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeedType2"), TURN_SPEED - float_max_type2*TURN_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
-        glDispatchCompute(AGENTS_COUNT/256, 1, 1);
+        glDispatchCompute(WIDTH/8, HEIGHT/8, 1);
 
         glUseProgram(evaporate_program);
         glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
