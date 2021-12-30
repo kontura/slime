@@ -378,10 +378,15 @@ int main() {
     double lastTime = 0;
 
     const char *pipe_file = "./cava_fifo";
-    int fd = open(pipe_file, O_RDONLY);
 
     rewriteConfig(20);
     reloadConfig();
+    int fd = open(pipe_file, O_RDONLY);
+    if (fd < 0) {
+        std::cerr << "failed to open pipe cava_fifo" << std::endl;
+        glfwTerminate();
+        exit(11);
+    }
 
     glfwSetKeyCallback(window, key_callback);
 
