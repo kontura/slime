@@ -1,6 +1,6 @@
 #version 430
 
-layout(local_size_x=32, local_size_y=32) in;
+layout(local_size_x=30, local_size_y=30) in;
 
 layout(location = 0) uniform float dt;
 layout(std430, binding=0) buffer pblock { vec4 positions[]; };
@@ -25,9 +25,9 @@ void main() {
             int sampleX = id.x + offsetX;
             int sampleY = id.y + offsetY;
 
-            //if (sampleX >= 0 && sampleX <= width && sampleY >= 0 && sampleY <= height) {
+            if (sampleX >= 0 && sampleX <= width && sampleY >= 0 && sampleY <= height) {
                 sum += imageLoad(srcTex, ivec2(sampleX, sampleY));
-            //}
+            }
         }
     }
 

@@ -459,10 +459,11 @@ int main() {
 
         glUseProgram(evaporate_program);
         glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
-        glDispatchCompute(WIDTH/32, HEIGHT/32, 1);
+        // We use 30 here because it is a common divider of 1080 and 1920 -> eatch pixel is taken care of in our texture
+        glDispatchCompute(WIDTH/30, HEIGHT/30, 1);
 
         glUseProgram(copy_program);
-        glDispatchCompute(WIDTH/16, HEIGHT/16, 1);
+        glDispatchCompute(WIDTH/30, HEIGHT/30, 1);
 
         // clear first
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
