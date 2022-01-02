@@ -122,7 +122,7 @@ void main() {
     {
         newPos.x = min(width-0.01, max(0, newPos.x));
         newPos.y = min(height-0.01, max(0, newPos.y));
-        agents[index].angle = pserandom(agent.position * index) * 2.0f * 3.14f;
+        agents[index].angle = pserandom(agent.position) * 2.0f * 3.14f;
 
     }
 
