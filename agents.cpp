@@ -16,8 +16,8 @@
 #include "cava.hpp"
 
 #define AGENTS_COUNT 1024 * 1024
-#define WIDTH 1280
-#define HEIGHT 720
+#define WIDTH 1920
+#define HEIGHT 1080
 
 #define EVAPORATE_SPEED 0.20
 #define DIFFUSE_SPEED 33.2
