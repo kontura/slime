@@ -282,7 +282,13 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 
 }
 
+void window_close_callback(GLFWwindow* window) {
+    stopCava();
+}
+
 int main() {
+    rewriteConfig(20);
+    runCava();
 
     PulseAudioContext PACtx = initializeSimplePulseAudio();
     float buffer_left_sound[BUFFER_SIZE];
@@ -379,8 +385,8 @@ int main() {
 
     const char *pipe_file = "./cava_fifo";
 
-    rewriteConfig(20);
-    reloadConfig();
+    //wait until pipe is ready (waiting for cava)
+    sleep(1);
     int fd = open(pipe_file, O_RDONLY);
     if (fd < 0) {
         std::cerr << "failed to open pipe cava_fifo" << std::endl;
@@ -389,6 +395,7 @@ int main() {
     }
 
     glfwSetKeyCallback(window, key_callback);
+    glfwSetWindowCloseCallback(window, window_close_callback);
 
     unsigned char cava_input[30];
     while(!glfwWindowShouldClose(window)) {

@@ -19,7 +19,7 @@ void rewriteConfig(int sensitivity) {
 
    FILE * fp;
 
-   fp = fopen ("cava.conf", "w+");
+   fp = fopen("cava.conf", "w+");
    fprintf(fp, "%s%i\n\n%s", top_config, sensitivity, bottom_config);
 
    fclose(fp);
@@ -27,4 +27,12 @@ void rewriteConfig(int sensitivity) {
 
 void reloadConfig() {
     system("pkill -USR1 cava");
+}
+
+void runCava() {
+    system("cava -p cava.conf &");
+}
+
+void stopCava() {
+    system("pkill cava");
 }
