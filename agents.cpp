@@ -354,7 +354,7 @@ int main() {
 
     glUniform1f(glGetUniformLocation(acceleration_program, "sensorAngleSpacing"), SENSOR_ANGLE_SPACING);
     glUniform1f(glGetUniformLocation(acceleration_program, "sensorOffsetDst"), SENSOR_OFFSET_DST);
-    glUniform1f(glGetUniformLocation(acceleration_program, "sensorSize"), SENSOR_SIZE);
+    glUniform1i(glGetUniformLocation(acceleration_program, "sensorSize"), SENSOR_SIZE);
 
     glUseProgram(evaporate_program);
     glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot0);

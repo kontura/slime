@@ -22,7 +22,7 @@ layout (location = 8) uniform float turnSpeedType2;
 
 layout (location = 9) uniform float sensorAngleSpacing;
 layout (location = 10) uniform float sensorOffsetDst;
-layout (location = 11) uniform float sensorSize;
+layout (location = 11) uniform int sensorSize;
 layout (location = 12) uniform int agentsCount;
 
 float pserandom(vec2 uv) {
