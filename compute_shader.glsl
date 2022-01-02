@@ -55,12 +55,6 @@ float sense(Agent agent, float sensorAngleOffset, float sensorOffsetDst, int sen
 void main() {
     //ivec2 storePos = ivec2(gl_GlobalInvocationID.xy);
 
-    //These should come from CPU
-    float sensorAngleSpacing = 1.0;
-    float sensorOffsetDst = 5.0;
-    int sensorSize = 2;
-
-
     int N = int(gl_NumWorkGroups.x*gl_WorkGroupSize.x);
     //int index = int(gl_GlobalInvocationID);
     int index = int(gl_GlobalInvocationID.x);
@@ -131,31 +125,7 @@ void main() {
         agents[index].angle = pserandom(agent.position * index) * 2.0f * 3.14f;
 
     }
-    //ivec2 diff = ivec2(newPos - agents[index].position);
-    //ivec2 inc = ivec2(0,0);
-
-    //if (diff.x > 0)
-    //    inc.x = 1;
-    //if (diff.y > 0)
-    //    inc.x = 1;
-    //if (diff.x < 0)
-    //    inc.x = -1;
-    //if (diff.y < 0)
-    //    inc.x = -1;
-
-    //int failsafe = 0;
-
-    //ivec2 i = ivec2(agents[index].position);
-    //while(newPos.x > i.x || newPos.y > i.y ) {
-    //    imageStore(destTex, ivec2(i), color);
-    //    i = i + inc;
-
-    //    if (failsafe > 1000){
-    //        break;
-    //    }
-    //    failsafe++;
-    //}
 
     agents[index].position = newPos;
-    imageStore(destTex, ivec2(newPos) + ivec2(0,0), color);
+    imageStore(destTex, ivec2(newPos), color);
 }
