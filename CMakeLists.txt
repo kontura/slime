@@ -14,5 +14,5 @@ SET(LIBRARIES glfw ${GLFW_LIBRARIES} ${LIBPULSE-SIMPLE_LIBRARIES} ${GLEW_LIBRARI
 
 link_directories (${OPENGLEXAMPLES_BINARY_DIR}/bin)
 
-add_executable (agents agents.cpp pulseAudio.cpp cava.cpp)
+add_executable (agents agents.cpp pulseAudio.cpp cava.cpp capture.cpp)
 target_link_libraries(agents ${LIBRARIES} )
