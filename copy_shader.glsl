@@ -1,6 +1,6 @@
 #version 430
 
-layout(local_size_x=30, local_size_y=30) in;
+layout(local_size_x=40, local_size_y=40) in;
 
 layout (location = 0, rgba8) readonly uniform image2D srcTex;
 layout (location = 1, rgba8) writeonly uniform image2D destTex;

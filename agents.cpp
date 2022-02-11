@@ -16,6 +16,8 @@
 #include "cava.hpp"
 
 #define AGENTS_COUNT 1024 * 1024
+//#define WIDTH 2560
+//#define HEIGHT 1440
 #define WIDTH 1920
 #define HEIGHT 1080
 
@@ -460,10 +462,10 @@ int main() {
         glUseProgram(evaporate_program);
         glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
         // We use 30 here because it is a common divider of 1080 and 1920 -> eatch pixel is taken care of in our texture
-        glDispatchCompute(WIDTH/30, HEIGHT/30, 1);
+        glDispatchCompute(WIDTH/40, HEIGHT/40, 1);
 
         glUseProgram(copy_program);
-        glDispatchCompute(WIDTH/30, HEIGHT/30, 1);
+        glDispatchCompute(WIDTH/40, HEIGHT/40, 1);
 
         // clear first
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
