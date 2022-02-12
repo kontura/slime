@@ -14,6 +14,7 @@
 
 #include "pulseAudio.hpp"
 #include "cava.hpp"
+#include "capture.hpp"
 
 #define AGENTS_COUNT 1024 * 1024
 //#define WIDTH 2560
@@ -288,7 +289,14 @@ void window_close_callback(GLFWwindow* window) {
     stopCava();
 }
 
-int main() {
+int main(int argc, char **argv) {
+    const char *cmdline_file_input_path = NULL;
+    if (argc == 2) {
+        // we have a file input
+        cmdline_file_input_path = argv[1];
+    }
+
+
     rewriteConfig(20);
     runCava();
 
@@ -385,15 +393,26 @@ int main() {
     double nbFrames = 0;
     double lastTime = 0;
 
-    const char *pipe_file = "./cava_fifo";
+    const char *input_file = NULL;
+    if (cmdline_file_input_path != NULL) {
+        input_file = cmdline_file_input_path;
+    } else {
+        //wait until pipe is ready (waiting for cava)
+        sleep(1);
+        input_file = "./cava_fifo";
+    }
 
-    //wait until pipe is ready (waiting for cava)
-    sleep(1);
-    int fd = open(pipe_file, O_RDONLY);
+    int fd = open(input_file, O_RDONLY);
+    printf("opening for reading: %s\n", input_file);
+
     if (fd < 0) {
         std::cerr << "failed to open pipe cava_fifo" << std::endl;
         glfwTerminate();
         exit(11);
+    }
+
+    if (cmdline_file_input_path == NULL) {
+        fcntl(fd, F_SETFL, O_NONBLOCK);
     }
 
     glfwSetKeyCallback(window, key_callback);
@@ -403,8 +422,17 @@ int main() {
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
         int vals_read = 30;
-        while (vals_read == 30){
-            vals_read = read(fd, cava_input, 30);
+        //TODO(amatej): make sure we never read partial data?
+        if (cmdline_file_input_path) {
+              vals_read = read(fd, cava_input, 30);
+        } else {
+            // real time mode -> if we are not fast enough we have to skip cava outputs
+            while (vals_read == 30) {
+                vals_read = read(fd, cava_input, 30);
+            }
+        }
+        if (vals_read != 30 && cmdline_file_input_path) {
+            glfwSetWindowShouldClose(window, 1);
         }
 
         if (sensitivity_input > 0) {
@@ -477,6 +505,10 @@ int main() {
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         checkOpenGLErrors("Main Loop");
+
+        if (cmdline_file_input_path) {
+            capture(window);
+        }
 
         // finally swap buffers
         glfwSwapBuffers(window);
