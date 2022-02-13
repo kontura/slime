@@ -329,10 +329,12 @@ int main(int argc, char **argv) {
         AgentsData[i].x = WIDTH/2;
         AgentsData[i].y = HEIGHT/2;
         AgentsData[i].angle = 0 * 3.14f * 2.0f;
-        if ((float)i > (float)AGENTS_COUNT/2.0f) {
-            AgentsData[i].type = 2;
+        AgentsData[i].type = 1;
+        if (i % 2 == 0) {
+            AgentsData[i].type = 100;
         }
-        //printf("angle data: %f \n", angleData[i]);
+        //TODO(amatej): for some reason we only see half?? (I guess) of the agents
+        //printf("angle type: %f \n", AgentsData[i].type);
         //printf("positions data: %f x %f\n", positionData[index], positionData[index+1]);
     }
 
@@ -451,7 +453,7 @@ int main(int argc, char **argv) {
         }
 
         unsigned char max = 0;
-        for (int i=0;i<30;i++) {
+        for (int i=0;i<15;i++) {
             if (max < cava_input[i]) {
                 max = cava_input[i];
             }
@@ -460,6 +462,7 @@ int main(int argc, char **argv) {
         //for (unsigned int i=0;i<max;i++) {
         //    printf("=");
         //}
+        //TODO(amatej): what is the magic number 5120*8? I do not remember..
         float float_max = (float)max / (float)5120* 8;
         //printf("\n");
         //printf("max1: %f\n", float_max);
@@ -474,7 +477,7 @@ int main(int argc, char **argv) {
         //for (unsigned int i=0;i<max;i++) {
         //    printf("=");
         //}
-        float float_max_type2 = (float) max /(float) 255;
+        float float_max_type2 = (float)max / (float)5120* 8;
 
         glfwPollEvents();
 
@@ -483,7 +486,7 @@ int main(int argc, char **argv) {
         glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), 0.3f + float_max*MOVE_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), 0.6f - float_max*TURN_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeedType2"), 0.3 + float_max_type2*MOVE_SPEED);
-        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeedType2"), TURN_SPEED - float_max_type2*TURN_SPEED);
+        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeedType2"), 0.6f - float_max_type2*TURN_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
         glDispatchCompute(WIDTH/8, HEIGHT/8, 1);
 
