@@ -72,6 +72,7 @@ void main() {
     }
 
     vec2 direction = vec2(cos(agent.angle), sin(agent.angle));
+    //TODO(amatej): investigate frame rate independence (right now 60fps is very different from 30fps
     vec2 newPos = agent.position + direction * agent_move_speed * dt;
 
     float weightForward = sense(agent, 0, sensorOffsetDst, sensorSize, index);
