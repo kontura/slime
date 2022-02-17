@@ -296,6 +296,7 @@ int main(int argc, char **argv) {
         cmdline_file_input_path = argv[1];
     }
 
+    int tex_order = 1;
 
     rewriteConfig(20);
     runCava();
@@ -316,7 +317,6 @@ int main(int argc, char **argv) {
     // create program
     GLuint acceleration_program = generateComputeProgram("../compute_shader.glsl");
     GLuint evaporate_program = generateComputeProgram("../evaporate_shader.glsl");
-    GLuint copy_program = generateComputeProgram("../copy_shader.glsl");
 
     // CREATE INIT DATA
 
@@ -356,8 +356,6 @@ int main(int argc, char **argv) {
 
     // setup uniforms
     glUseProgram(acceleration_program);
-    glUniform1i(glGetUniformLocation(acceleration_program, "srcTex"), texture_slot1);
-    glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot0);
     glUniform1i(glGetUniformLocation(acceleration_program, "width"), WIDTH);
     glUniform1i(glGetUniformLocation(acceleration_program, "height"), HEIGHT);
     glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), MOVE_SPEED);
@@ -369,16 +367,10 @@ int main(int argc, char **argv) {
     glUniform1i(glGetUniformLocation(acceleration_program, "sensorSize"), SENSOR_SIZE);
 
     glUseProgram(evaporate_program);
-    glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot0);
-    glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot1);
     glUniform1f(glGetUniformLocation(evaporate_program, "evaporate_speed"), EVAPORATE_SPEED);
     glUniform1f(glGetUniformLocation(evaporate_program, "diffuse_speed"), DIFFUSE_SPEED);
     glUniform1i(glGetUniformLocation(evaporate_program, "width"), WIDTH);
     glUniform1i(glGetUniformLocation(evaporate_program, "height"), HEIGHT);
-
-    glUseProgram(copy_program);
-    glUniform1i(glGetUniformLocation(copy_program, "srcTex"), texture_slot1);
-    glUniform1i(glGetUniformLocation(copy_program, "destTex"), texture_slot0);
 
     // we are blending so no depth testing
     glDisable(GL_DEPTH_TEST);
@@ -483,6 +475,13 @@ int main(int argc, char **argv) {
 
 
         glUseProgram(acceleration_program);
+        if (tex_order) {
+            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex"), texture_slot1);
+            glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot0);
+        } else {
+            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex"), texture_slot0);
+            glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot1);
+        }
         glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), 0.3f + float_max*MOVE_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), 0.6f - float_max*TURN_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeedType2"), 0.3 + float_max_type2*MOVE_SPEED);
@@ -491,12 +490,22 @@ int main(int argc, char **argv) {
         glDispatchCompute(WIDTH/8, HEIGHT/8, 1);
 
         glUseProgram(evaporate_program);
+        if (tex_order) {
+            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot0);
+            glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot1);
+        } else {
+            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot1);
+            glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot0);
+        }
         glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
         // We use 30 here because it is a common divider of 1080 and 1920 -> eatch pixel is taken care of in our texture
         glDispatchCompute(WIDTH/40, HEIGHT/40, 1);
 
-        glUseProgram(copy_program);
-        glDispatchCompute(WIDTH/40, HEIGHT/40, 1);
+        if (tex_order) {
+            tex_order = 0;
+        } else {
+            tex_order = 1;
+        }
 
         // clear first
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -536,7 +545,6 @@ int main(int argc, char **argv) {
 
     glDeleteProgram(acceleration_program);
     glDeleteProgram(evaporate_program);
-    glDeleteProgram(copy_program);
 
     glfwDestroyWindow(window);
     glfwTerminate();
