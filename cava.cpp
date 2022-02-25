@@ -14,8 +14,9 @@ void rewriteConfig(int sensitivity) {
        "method = raw\n"
        "raw_target = cava_fifo\n"
        "bit_format = 8bit\n"
+       "data_format = binary\n"
        "channels = mono\n"
-       "mono_option = left\n";
+       "mono_option = average\n";
 
    FILE * fp;
 

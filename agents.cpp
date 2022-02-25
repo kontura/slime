@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstdlib>
 #include <cmath>
+#include <string.h>
 #include <fstream>
 #include <fcntl.h>
 
@@ -30,6 +31,7 @@
 #define SENSOR_ANGLE_SPACING 1
 #define SENSOR_OFFSET_DST 5
 #define SENSOR_SIZE 2
+#define CAVA_BARS 30
 
 
 std::string read_file(std::string path) {
@@ -412,20 +414,25 @@ int main(int argc, char **argv) {
     glfwSetKeyCallback(window, key_callback);
     glfwSetWindowCloseCallback(window, window_close_callback);
 
-    unsigned char cava_input[30];
+    uint8_t cava_input[CAVA_BARS];
+    uint8_t cava_input_read[CAVA_BARS];
+    uint8_t buf_8;
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
-        int vals_read = 30;
+        int vals_read = CAVA_BARS;
         //TODO(amatej): make sure we never read partial data?
         if (cmdline_file_input_path) {
-              vals_read = read(fd, cava_input, 30);
+              vals_read = read(fd, cava_input, CAVA_BARS);
         } else {
             // real time mode -> if we are not fast enough we have to skip cava outputs
-            while (vals_read == 30) {
-                vals_read = read(fd, cava_input, 30);
+            while (vals_read == CAVA_BARS) {
+                vals_read = read(fd, cava_input_read, CAVA_BARS);
+                if (vals_read == CAVA_BARS) {
+                    memcpy(cava_input, cava_input_read, CAVA_BARS);
+                }
             }
         }
-        if (vals_read != 30 && cmdline_file_input_path) {
+        if (vals_read != CAVA_BARS && cmdline_file_input_path) {
             glfwSetWindowShouldClose(window, 1);
         }
 
@@ -444,32 +451,33 @@ int main(int argc, char **argv) {
             reloadConfig();
         }
 
-        unsigned char max = 0;
-        for (int i=0;i<15;i++) {
+        uint8_t max = 0;
+        for (int i=0;i<8;i++) {
             if (max < cava_input[i]) {
                 max = cava_input[i];
             }
-           // printf("%u ", cava_input[i]);
+            //printf("%" PRIi8 " ", cava_input[i]);
         }
         //for (unsigned int i=0;i<max;i++) {
         //    printf("=");
         //}
         //TODO(amatej): what is the magic number 5120*8? I do not remember..
-        float float_max = (float)max / (float)5120* 8;
+        float float_max = (float)max / (float)5120* 6;
         //printf("\n");
         //printf("max1: %f\n", float_max);
         //printf("passing to shader: %f\n\n", 0.3f + float_max*MOVE_SPEED);
         max = 0;
-        for (int i=15;i<30;i++) {
+        for (int i=8;i<CAVA_BARS;i++) {
             if (max < cava_input[i]) {
                 max = cava_input[i];
             }
-           // printf("%u ", cava_input[i]);
+            //printf("%" PRIi8 " ", cava_input[i]);
         }
+        //printf("\n");
         //for (unsigned int i=0;i<max;i++) {
         //    printf("=");
         //}
-        float float_max_type2 = (float)max / (float)5120* 8;
+        float float_max_type2 = (float)max / (float)5120* 12;
 
         glfwPollEvents();
 
