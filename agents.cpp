@@ -324,11 +324,12 @@ int main(int argc, char **argv) {
 
     // randomly place agents
     Agent *AgentsData = (Agent *) malloc(AGENTS_COUNT*4*sizeof(float));
+    double step = (float)WIDTH/(float)AGENTS_COUNT;
     for(int i = 0;i<AGENTS_COUNT;++i) {
         // initial position
         //AgentsData[i].x = (rand()%WIDTH);
         //AgentsData[i].y = (rand()%HEIGHT);
-        AgentsData[i].x = WIDTH/2;
+        AgentsData[i].x = step*(float)i;
         AgentsData[i].y = HEIGHT/2;
         AgentsData[i].angle = 0 * 3.14f * 2.0f;
         AgentsData[i].type = 1;
