@@ -22,7 +22,7 @@ int capture(GLFWwindow *window) {
     tga.img_desc = 0;
 
     /* Read pixels from [0, 0] to screenWidth, screenHeight, mode (RGB), type (3 bytes RGB), store into tga.pic */
-    glReadPixels(0, 0, screenWidth, screenHeight, GL_RGB, GL_UNSIGNED_BYTE, tga.pic[0]);
+    glReadPixels(0, 0, screenWidth, screenHeight, GL_BGR, GL_UNSIGNED_BYTE, tga.pic[0]);
 
     mkdir("./capture", 0777);
 
