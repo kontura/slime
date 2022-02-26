@@ -18,7 +18,8 @@ int capture(GLFWwindow *window) {
 
     tga.dx = screenWidth;
     tga.dy = screenHeight;
-    tga.head2 = 0x2018;
+    tga.pix_depth = 24;
+    tga.img_desc = 0;
 
     /* Read pixels from [0, 0] to screenWidth, screenHeight, mode (RGB), type (3 bytes RGB), store into tga.pic */
     glReadPixels(0, 0, screenWidth, screenHeight, GL_RGB, GL_UNSIGNED_BYTE, tga.pic[0]);

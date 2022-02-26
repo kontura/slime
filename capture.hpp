@@ -4,7 +4,9 @@
 
 typedef struct {
     unsigned char head[12];
-    unsigned short dx, dy, head2;
+    unsigned short dx, dy;
+    unsigned char pix_depth;
+    unsigned char img_desc;
     unsigned char pic[768 * 1024 * 10][3];
 } typetga;
 
