@@ -17,11 +17,11 @@
 #include "cava.hpp"
 #include "capture.hpp"
 
-#define AGENTS_COUNT 1024 * 1024
 //#define WIDTH 2560
 //#define HEIGHT 1440
 #define WIDTH 1920
 #define HEIGHT 1080
+#define AGENTS_COUNT WIDTH
 
 #define EVAPORATE_SPEED 0.20
 #define DIFFUSE_SPEED 33.2
