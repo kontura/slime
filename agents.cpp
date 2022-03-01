@@ -329,7 +329,8 @@ int main(int argc, char **argv) {
         // initial position
         //AgentsData[i].x = (rand()%WIDTH);
         //AgentsData[i].y = (rand()%HEIGHT);
-        AgentsData[i].x = step*(float)i;
+        //AgentsData[i].x = step*(float)i;
+        AgentsData[i].x = WIDTH/2;
         AgentsData[i].y = HEIGHT/2;
         AgentsData[i].angle = 0 * 3.14f * 2.0f;
         AgentsData[i].type = 1;
