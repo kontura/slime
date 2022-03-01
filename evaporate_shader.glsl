@@ -14,10 +14,13 @@ layout(location = 3) uniform float diffuse_speed;
 layout (location = 5) uniform int width;
 layout (location = 6) uniform int height;
 
-void main() {
-    ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+layout (location = 7, rgba8) readonly uniform image2D srcTex_type1;
+layout (location = 8, rgba8) readonly uniform image2D srcTex_type2;
+layout (location = 9, rgba8) writeonly uniform image2D destTex_type1;
+layout (location = 10, rgba8) writeonly uniform image2D destTex_type2;
 
-    vec4 originalValue = imageLoad(srcTex, id);
+vec4 compute_evaporate(readonly image2D in_tex, ivec2 id) {
+    vec4 originalValue = imageLoad(in_tex, id);
 
     vec4 sum = vec4(0.0);
     for (int offsetX = -1; offsetX <= 1; offsetX++) {
@@ -26,7 +29,7 @@ void main() {
             int sampleY = id.y + offsetY;
 
             if (sampleX >= 0 && sampleX <= width && sampleY >= 0 && sampleY <= height) {
-                sum += imageLoad(srcTex, ivec2(sampleX, sampleY));
+                sum += imageLoad(in_tex, ivec2(sampleX, sampleY));
             }
         }
     }
@@ -37,6 +40,14 @@ void main() {
 
     vec4 evaporatedValue = max(vec4(0), diffusedValue - evaporate_speed * dt);
 
-    imageStore(destTex, id, evaporatedValue);
+    return evaporatedValue;
+}
+
+void main() {
+    ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+
+    imageStore(destTex, id, compute_evaporate(srcTex, id));
+    imageStore(destTex_type1, id, compute_evaporate(srcTex_type1, id));
+    imageStore(destTex_type2, id, compute_evaporate(srcTex_type2, id));
 
 }

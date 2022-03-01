@@ -310,11 +310,18 @@ int main(int argc, char **argv) {
 
     int texture_slot0 = 0;
     int texture_slot1 = 1;
+    int texture_slot2 = 2;
+    int texture_slot3 = 3;
+    int texture_slot4 = 4;
+    int texture_slot5 = 5;
     GLuint texture0 = generateTexture(texture_slot0);
     GLuint texture1 = generateTexture(texture_slot1);
+    GLuint texture2 = generateTexture(texture_slot2);
+    GLuint texture3 = generateTexture(texture_slot3);
+    GLuint texture4 = generateTexture(texture_slot4);
+    GLuint texture5 = generateTexture(texture_slot5);
     // program and shader handles
     GLuint shader_program = generateRenderProgram();
-    glUniform1i(glGetUniformLocation(shader_program, "tex"), texture_slot1);
 
     // create program
     GLuint acceleration_program = generateComputeProgram("../compute_shader.glsl");
@@ -488,9 +495,17 @@ int main(int argc, char **argv) {
         if (tex_order) {
             glUniform1i(glGetUniformLocation(acceleration_program, "srcTex"), texture_slot1);
             glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot0);
+            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex_type1"), texture_slot2);
+            glUniform1i(glGetUniformLocation(acceleration_program, "destTex_type1"), texture_slot3);
+            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex_type2"), texture_slot4);
+            glUniform1i(glGetUniformLocation(acceleration_program, "destTex_type2"), texture_slot5);
         } else {
             glUniform1i(glGetUniformLocation(acceleration_program, "srcTex"), texture_slot0);
             glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot1);
+            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex_type1"), texture_slot3);
+            glUniform1i(glGetUniformLocation(acceleration_program, "destTex_type1"), texture_slot2);
+            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex_type2"), texture_slot5);
+            glUniform1i(glGetUniformLocation(acceleration_program, "destTex_type2"), texture_slot4);
         }
         glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), 0.3f + float_max*MOVE_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), 0.6f - float_max*TURN_SPEED);
@@ -504,9 +519,17 @@ int main(int argc, char **argv) {
         if (tex_order) {
             glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot0);
             glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot1);
+            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex_type1"), texture_slot2);
+            glUniform1i(glGetUniformLocation(evaporate_program, "destTex_type1"), texture_slot3);
+            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex_type2"), texture_slot4);
+            glUniform1i(glGetUniformLocation(evaporate_program, "destTex_type2"), texture_slot5);
         } else {
             glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot1);
             glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot0);
+            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex_type1"), texture_slot3);
+            glUniform1i(glGetUniformLocation(evaporate_program, "destTex_type1"), texture_slot2);
+            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex_type2"), texture_slot5);
+            glUniform1i(glGetUniformLocation(evaporate_program, "destTex_type2"), texture_slot4);
         }
         glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
         // We use 40 here because it is a common divider of 1080 and 1920 -> eatch pixel is taken care of in our texture
@@ -524,6 +547,11 @@ int main(int argc, char **argv) {
 
         // use the shader program
         glUseProgram(shader_program);
+        if (tex_order) {
+            glUniform1i(glGetUniformLocation(shader_program, "tex"), texture_slot0);
+        } else {
+            glUniform1i(glGetUniformLocation(shader_program, "tex"), texture_slot1);
+        }
 
         // draw
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

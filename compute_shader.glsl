@@ -25,6 +25,11 @@ layout (location = 10) uniform float sensorOffsetDst;
 layout (location = 11) uniform int sensorSize;
 layout (location = 12) uniform int agentsCount;
 
+layout (location = 13, rgba8) readonly uniform image2D srcTex_type1;
+layout (location = 14, rgba8) readonly uniform image2D srcTex_type2;
+layout (location = 15, rgba8) writeonly uniform image2D destTex_type1;
+layout (location = 16, rgba8) writeonly uniform image2D destTex_type2;
+
 float pserandom(vec2 uv) {
     float x = sin(dot(uv.xy, vec2(12.9898,78.233))) * 43758.5453123;
     return x - floor(x);
@@ -41,10 +46,13 @@ float sense(Agent agent, float sensorAngleOffset, float sensorOffsetDst, int sen
             vec2 pos = sensorCenter + vec2(offsetX, offsetY);
             if (pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height) {
                 //Use separate textures
-                //if (agents[index].type >= 0.0f) {
-                    vec3 c = imageLoad(srcTex, ivec2(pos)).xyz;
-                    sum += c.x + c.y + c.z;
-                //}
+                vec3 c;
+                if (agent.type > 44.1) {
+                    c = imageLoad(srcTex_type1, ivec2(pos)).xyz;
+                } else {
+                    c = imageLoad(srcTex_type2, ivec2(pos)).xyz;
+                }
+                sum += c.x + c.y + c.z;
             }
         }
     }
@@ -128,5 +136,10 @@ void main() {
     }
 
     agents[index].position = newPos;
+    if (agent.type > 44.1) {
+        imageStore(destTex_type1, ivec2(newPos), color);
+    } else {
+        imageStore(destTex_type2, ivec2(newPos), color);
+    }
     imageStore(destTex, ivec2(newPos), color);
 }
