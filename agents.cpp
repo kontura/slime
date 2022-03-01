@@ -495,6 +495,7 @@ int main(int argc, char **argv) {
         glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), 0.6f - float_max*TURN_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeedType2"), 0.3 + float_max_type2*MOVE_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeedType2"), 0.6f - float_max_type2*TURN_SPEED);
+        //TODO(amatej): check if my orig impl had dt?
         glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
         glDispatchCompute(WIDTH/8, HEIGHT/8, 1);
 
@@ -507,7 +508,8 @@ int main(int argc, char **argv) {
             glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot0);
         }
         glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
-        // We use 30 here because it is a common divider of 1080 and 1920 -> eatch pixel is taken care of in our texture
+        // We use 40 here because it is a common divider of 1080 and 1920 -> eatch pixel is taken care of in our texture
+        // When setting these don't forget about the local_size in the shader it self
         glDispatchCompute(WIDTH/40, HEIGHT/40, 1);
 
         if (tex_order) {
