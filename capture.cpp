@@ -27,7 +27,7 @@ int capture(GLFWwindow *window) {
     mkdir("./capture", 0777);
 
     /* Store "Capture_%04lu.tga" + captureNumber into captureName, increase frame count */
-    sprintf(captureName, "./capture/Capture_%04lu.tga" /* 'lu' for unsigned long */, captureNumber); captureNumber++;
+    sprintf(captureName, "./capture/Capture_%lu.tga" /* 'lu' for unsigned long */, captureNumber); captureNumber++;
 
     /* Write file */
     FILE* cc = fopen(captureName, "wb");
