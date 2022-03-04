@@ -38,6 +38,8 @@ Decoder *decoder_new() {
         exit(1);
     }
 
+    decoder->inbuf = (uint8_t *) malloc(sizeof(uint8_t) * AUDIO_INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE);
+    decoder->data = decoder->inbuf;
 
     return decoder;
 }
@@ -47,6 +49,7 @@ void decoder_free(Decoder *decoder) {
     av_parser_close(decoder->parser);
     av_frame_free(&(decoder->decoded_frame));
     av_packet_free(&(decoder->packet));
+    free(decoder->inbuf);
     free(decoder);
 }
 
@@ -83,4 +86,41 @@ void decode(Decoder *decoder, FILE *outfile) {
     }
 
     return;
+}
+
+size_t process_one_read(Decoder *ffmpeg_decoder, FILE *infile, FILE *outfile, size_t data_size) {
+    int ret;
+    int len;
+    if (!(ffmpeg_decoder->decoded_frame)) {
+        if (!(ffmpeg_decoder->decoded_frame = av_frame_alloc())) {
+            fprintf(stderr, "Could not allocate audio frame\n");
+            exit(1);
+        }
+    }
+    ret = av_parser_parse2(ffmpeg_decoder->parser,
+                           ffmpeg_decoder->context,
+                           &(ffmpeg_decoder->packet->data),
+                           &(ffmpeg_decoder->packet->size),
+                           ffmpeg_decoder->data, data_size,
+                           AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+    if (ret < 0) {
+        fprintf(stderr, "Error while parsing\n");
+        exit(1);
+    }
+    ffmpeg_decoder->data += ret;
+    data_size -= ret;
+
+    if (ffmpeg_decoder->packet->size) {
+        decode(ffmpeg_decoder, outfile);
+    }
+
+    if (data_size < AUDIO_REFILL_THRESH) {
+        memmove(ffmpeg_decoder->inbuf, ffmpeg_decoder->data, data_size);
+        ffmpeg_decoder->data = ffmpeg_decoder->inbuf;
+        len = fread(ffmpeg_decoder->data + data_size, 1, AUDIO_INBUF_SIZE - data_size, infile);
+        if (len > 0)
+            data_size += len;
+    }
+
+    return data_size;
 }

@@ -429,44 +429,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Could not open in or out file \n");
         exit(1);
     }
-    uint8_t inbuf[AUDIO_INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
-    uint8_t *data = inbuf;
     Decoder *ffmpeg_decoder = decoder_new();
-    int ret;
-    int len;
-    size_t data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, infile);
 
+    size_t data_size = fread(ffmpeg_decoder->inbuf, 1, AUDIO_INBUF_SIZE, infile);
     while (data_size > 0) {
-        if (!(ffmpeg_decoder->decoded_frame)) {
-            if (!(ffmpeg_decoder->decoded_frame = av_frame_alloc())) {
-                fprintf(stderr, "Could not allocate audio frame\n");
-                exit(1);
-            }
-        }
-        ret = av_parser_parse2(ffmpeg_decoder->parser,
-                               ffmpeg_decoder->context,
-                               &(ffmpeg_decoder->packet->data),
-                               &(ffmpeg_decoder->packet->size),
-                               data, data_size,
-                               AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
-        if (ret < 0) {
-            fprintf(stderr, "Error while parsing\n");
-            exit(1);
-        }
-        data += ret;
-        data_size -= ret;
-
-        if (ffmpeg_decoder->packet->size) {
-            decode(ffmpeg_decoder, outfile);
-        }
-
-        if (data_size < AUDIO_REFILL_THRESH) {
-            memmove(inbuf, data, data_size);
-            data = inbuf;
-            len = fread(data + data_size, 1, AUDIO_INBUF_SIZE - data_size, infile);
-            if (len > 0)
-                data_size += len;
-        }
+        data_size = process_one_read(ffmpeg_decoder, infile, outfile, data_size);
     }
     /* flush the decoder */
     ffmpeg_decoder->packet->data = NULL;

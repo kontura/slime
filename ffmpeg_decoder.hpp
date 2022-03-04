@@ -15,9 +15,11 @@ typedef struct ffmpeg_decoder {
     AVCodecParserContext *parser;
     AVPacket *packet;
     AVFrame *decoded_frame;
-    float type;
+    uint8_t *inbuf;
+    uint8_t *data;
 } Decoder;
 
 Decoder *decoder_new();
 void decoder_free(Decoder *decoder);
 void decode(Decoder *decoder, FILE *outfile);
+size_t process_one_read(Decoder *ffmpeg_decoder, FILE *infile, FILE *outfile, size_t data_size);
