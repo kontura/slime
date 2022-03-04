@@ -574,6 +574,10 @@ int main(int argc, char **argv) {
     // delete the created objects
     glDeleteTextures(1, &texture0);
     glDeleteTextures(1, &texture1);
+    glDeleteTextures(1, &texture2);
+    glDeleteTextures(1, &texture3);
+    glDeleteTextures(1, &texture4);
+    glDeleteTextures(1, &texture5);
 
     //glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &agents_vbo);
