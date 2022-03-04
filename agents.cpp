@@ -13,7 +13,6 @@
 #include <fstream>
 #include <fcntl.h>
 
-#include "pulseAudio.hpp"
 #include "cava.hpp"
 #include "capture.hpp"
 
@@ -303,9 +302,6 @@ int main(int argc, char **argv) {
     rewriteConfig(20);
     runCava();
 
-    PulseAudioContext PACtx = initializeSimplePulseAudio();
-    float buffer_left_sound[BUFFER_SIZE];
-    float buffer_right_sound[BUFFER_SIZE];
     GLFWwindow *window = initializeOpenGl();
 
     int texture_slot0 = 0;
@@ -425,7 +421,6 @@ int main(int argc, char **argv) {
 
     uint8_t cava_input[CAVA_BARS];
     uint8_t cava_input_read[CAVA_BARS];
-    uint8_t buf_8;
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
         int vals_read = CAVA_BARS;
@@ -589,7 +584,6 @@ int main(int argc, char **argv) {
     glfwDestroyWindow(window);
     glfwTerminate();
 
-    destroySimplePulseAudio(PACtx);
     free(AgentsData);
 
     return 0;
