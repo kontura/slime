@@ -30,6 +30,8 @@ typedef struct ffmpeg_decoder {
     AVFrame *decoded_frame;
     uint8_t *inbuf;
     uint8_t *data;
+    FILE *infile;
+    size_t data_size;
 } Decoder;
 
 // a wrapper around a single output AVStream
@@ -59,19 +61,17 @@ typedef struct ffmpeg_encoder {
 
     const AVCodec *video_codec;
     const AVCodec *audio_codec;
-
-    AVCodecContext *context;
-    AVPacket *packet;
-    AVFrame *encoded_frame;
 } Encoder;
 
-Decoder *decoder_new();
+Decoder *decoder_new(const char *infile);
 Encoder *encoder_new(const char *filename);
 
 void decoder_free(Decoder *decoder);
 void encoder_free(Encoder *encoder);
 
 size_t decode(Decoder *decoder, FILE *outfile);
-size_t encode(Encoder *encoder, FILE *outfile);
 
-size_t process_one_read(Decoder *ffmpeg_decoder, FILE *infile, FILE *outfile, size_t data_size, size_t *written_samples);
+size_t get_audio_samples(Decoder *ffmpeg_decoder, FILE *outfile, size_t *written_samples);
+void make_example_video(Encoder *encoder);
+int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c, AVStream *st, AVFrame *frame, AVPacket *pkt);
+int write_audio_frame(AVFormatContext *oc, OutputStream *ost);
