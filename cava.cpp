@@ -2,14 +2,14 @@
 #include <stdlib.h>
 #include "cava.hpp"
 
-void rewriteConfig(int sensitivity) {
-   const char *top_config =
+void rewriteConfig(int sensitivity, const char *read_from) {
+   const char *general_config =
        "[general]\n"
        "bars = 30\n"
        "autosens = 0\n"
        "sensitivity = ";
 
-   const char *bottom_config =
+   const char *output_config =
        "[output]\n"
        "method = raw\n"
        "raw_target = cava_fifo\n"
@@ -19,9 +19,21 @@ void rewriteConfig(int sensitivity) {
        "mono_option = average\n";
 
    FILE * fp;
-
    fp = fopen("cava.conf", "w+");
-   fprintf(fp, "%s%i\n\n%s", top_config, sensitivity, bottom_config);
+
+   if (read_from ) {
+       const char *input_config_p1 =
+           "[input]\n"
+           "method = fifo\n"
+           "source = ";
+       const char * input_config_p2 =
+           "sample_rate = 44100\n"
+           "sample_bits = 16\n";
+
+       fprintf(fp, "%s%i\n\n%s\n\n%s%s\n%s", general_config, sensitivity, output_config, input_config_p1, read_from, input_config_p2);
+   } else {
+       fprintf(fp, "%s%i\n\n%s\n", general_config, sensitivity, output_config);
+   }
 
    fclose(fp);
 }
