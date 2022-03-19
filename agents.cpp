@@ -13,6 +13,11 @@
 #include <fstream>
 #include <fcntl.h>
 
+
+//for fifo
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "cava.hpp"
 #include "capture.hpp"
 #include "ffmpeg_decoder.hpp"
@@ -288,14 +293,20 @@ void window_close_callback(GLFWwindow* window) {
 
 int main(int argc, char **argv) {
     const char *cmdline_file_input_path = NULL;
+    const char *internal_cava_ffmpeg_fifo = NULL;
     if (argc == 2) {
         // we have a file input
+        internal_cava_ffmpeg_fifo = "./internal_cava_ffmpeg_fifo";
         cmdline_file_input_path = argv[1];
+        if (mkfifo(internal_cava_ffmpeg_fifo, 0664) == -1) {
+            fprintf(stderr, "Could not create internal fifo to communicate between cava and ffmpeg (maybe it already exists?\n");
+            //exit(1);
+        }
     }
 
     int tex_order = 1;
 
-    rewriteConfig(20);
+    rewriteConfig(sensitivity, internal_cava_ffmpeg_fifo);
     runCava();
 
     GLFWwindow *window = initializeOpenGl();
@@ -323,7 +334,7 @@ int main(int argc, char **argv) {
 
     // randomly place agents
     Agent *AgentsData = (Agent *) malloc(AGENTS_COUNT*4*sizeof(float));
-    double step = (float)WIDTH/(float)AGENTS_COUNT;
+    //double step = (float)WIDTH/(float)AGENTS_COUNT;
     for(int i = 0;i<AGENTS_COUNT;++i) {
         // initial position
         //AgentsData[i].x = (rand()%WIDTH);
@@ -391,13 +402,9 @@ int main(int argc, char **argv) {
     double lastTime = 0;
 
     const char *input_file = NULL;
-    if (cmdline_file_input_path != NULL) {
-        input_file = cmdline_file_input_path;
-    } else {
-        //wait until pipe is ready (waiting for cava)
-        sleep(1);
-        input_file = "./cava_fifo";
-    }
+    //wait until pipe is ready (waiting for cava)
+    sleep(1);
+    input_file = "./cava_fifo";
 
     int fd = open(input_file, O_RDONLY);
     printf("opening for reading: %s\n", input_file);
@@ -418,38 +425,55 @@ int main(int argc, char **argv) {
     // load and decode song
     // TODO(amatej): this might be a separe function... in ffmpeg module
     //TODO(amatej): tmp file output
-    FILE *outfile = fopen("test_audio_out", "wb");
-    FILE *infile = fopen("../mamas_gun.mp2", "rb");
-    if (!infile || !outfile) {
-        fprintf(stderr, "Could not open in or out file \n");
-        exit(1);
+
+    Decoder *ffmpeg_decoder = NULL;
+    Encoder *ffmpeg_encoder = NULL;
+    FILE *infile = NULL;
+    FILE *outfile = NULL;
+    FILE *video_outfile = NULL;
+    size_t data_size = 0;
+    const char *video_outfile_name = "test.video";
+    if (cmdline_file_input_path != NULL) {
+        outfile = fopen(internal_cava_ffmpeg_fifo, "wb");
+
+        //TODO(amatej): I need to open the fifo first for reading then I can open it for writing..(cava does the reading so first launch cava)
+        infile = fopen("../mamas_gun.mp2", "rb");
+        if (!infile || !outfile) {
+            fprintf(stderr, "Could not open in or out file \n");
+            exit(1);
+        }
+        ffmpeg_decoder = decoder_new();
+        ffmpeg_encoder = encoder_new(video_outfile_name);
+
+        data_size = fread(ffmpeg_decoder->inbuf, 1, AUDIO_INBUF_SIZE, infile);
+
+
+
+        //TODO(amatej): TMP TEST VIDEO ENCODER
+
+        video_outfile = fopen(video_outfile_name, "wb");
     }
-    Decoder *ffmpeg_decoder = decoder_new();
-
-    size_t data_size = fread(ffmpeg_decoder->inbuf, 1, AUDIO_INBUF_SIZE, infile);
-    while (data_size > 0) {
-        data_size = process_one_read(ffmpeg_decoder, infile, outfile, data_size);
-    }
-    /* flush the decoder */
-    ffmpeg_decoder->packet->data = NULL;
-    ffmpeg_decoder->packet->size = 0;
-    decode(ffmpeg_decoder, outfile);
-
-    printf("audio decoded!\n");
-    printf("audio decoded!\n");
-    decoder_free(ffmpeg_decoder);
-    fclose(outfile);
-
-
 
     uint8_t cava_input[CAVA_BARS];
     uint8_t cava_input_read[CAVA_BARS];
+    size_t written_samples = 0;
+    size_t frame_index = 0;
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
         int vals_read = CAVA_BARS;
-        //TODO(amatej): make sure we never read partial data?
         if (cmdline_file_input_path) {
-              vals_read = read(fd, cava_input, CAVA_BARS);
+            //while (written_samples < 44100 && data_size > 0) {
+                data_size = process_one_read(ffmpeg_decoder, infile, outfile, data_size, &written_samples);
+                printf("written_samples: %lu\n", written_samples);
+            //}
+            written_samples = 0;
+            while (vals_read == CAVA_BARS) {
+                vals_read = read(fd, cava_input_read, CAVA_BARS);
+                if (vals_read == CAVA_BARS) {
+                    memcpy(cava_input, cava_input_read, CAVA_BARS);
+                }
+            }
+            //printf("vals_read: %i\n\n", vals_read);
         } else {
             // real time mode -> if we are not fast enough we have to skip cava outputs
             while (vals_read == CAVA_BARS) {
@@ -459,21 +483,21 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        if (vals_read != CAVA_BARS && cmdline_file_input_path) {
-            glfwSetWindowShouldClose(window, 1);
-        }
+        //if (vals_read != CAVA_BARS && cmdline_file_input_path) {
+        //    glfwSetWindowShouldClose(window, 1);
+        //}
 
         if (sensitivity_input > 0) {
             sensitivity += 5;
             sensitivity_input--;
-            rewriteConfig(sensitivity);
+            rewriteConfig(sensitivity, internal_cava_ffmpeg_fifo);
             printf("setting sensitivity: %i\n", sensitivity);
             reloadConfig();
         }
         if (sensitivity_input < 0) {
             sensitivity -= 5;
             sensitivity_input++;
-            rewriteConfig(sensitivity);
+            rewriteConfig(sensitivity, internal_cava_ffmpeg_fifo);
             printf("setting sensitivity: %i\n", sensitivity);
             reloadConfig();
         }
@@ -483,7 +507,7 @@ int main(int argc, char **argv) {
             if (max < cava_input[i]) {
                 max = cava_input[i];
             }
-            //printf("%" PRIi8 " ", cava_input[i]);
+            printf("%" PRIi8 " ", cava_input[i]);
         }
         //for (unsigned int i=0;i<max;i++) {
         //    printf("=");
@@ -498,9 +522,9 @@ int main(int argc, char **argv) {
             if (max < cava_input[i]) {
                 max = cava_input[i];
             }
-            //printf("%" PRIi8 " ", cava_input[i]);
+            printf("%" PRIi8 " ", cava_input[i]);
         }
-        //printf("\n");
+        printf("\n");
         //for (unsigned int i=0;i<max;i++) {
         //    printf("=");
         //}
@@ -533,6 +557,8 @@ int main(int argc, char **argv) {
         glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
         glDispatchCompute(WIDTH/8, HEIGHT/8, 1);
 
+        //TODO(amatej): this might be possible to optimatize into 1 texture and using different
+        //colorls for diffrent agent types
         glUseProgram(evaporate_program);
         if (tex_order) {
             glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot0);
@@ -576,8 +602,24 @@ int main(int argc, char **argv) {
 
         checkOpenGLErrors("Main Loop");
 
+        //capture video
         if (cmdline_file_input_path) {
-            capture(window);
+            if (av_frame_make_writable(ffmpeg_encoder->encoded_frame) < 0) {
+                fprintf(stderr, "Failed to make encoder frame writable \n");
+                exit(1);
+            }
+
+            unsigned char pic[WIDTH*HEIGHT*3];
+            glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE, pic);
+            SwsContext * ctx = sws_getContext(WIDTH, HEIGHT, AV_PIX_FMT_RGB24, WIDTH, HEIGHT, AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
+            uint8_t * inData[1] = { pic }; // RGB24 have one plane
+            int inLinesize[1] = { 3*WIDTH }; // RGB stride
+            sws_scale(ctx, inData, inLinesize, 0, HEIGHT, ffmpeg_encoder->encoded_frame->data, ffmpeg_encoder->encoded_frame->linesize);
+
+            ffmpeg_encoder->encoded_frame->pts = frame_index;
+
+            encode(ffmpeg_encoder, video_outfile);
+            frame_index++;
         }
 
         // finally swap buffers
@@ -592,6 +634,31 @@ int main(int argc, char **argv) {
         float fps_v = fps(&nbFrames, &lastTime);
         //printf("fps: %f\n", fps_v);
         float dt = 1.0f/fps_v;
+    }
+
+    if (cmdline_file_input_path != NULL) {
+        /* flush the decoder */
+        ffmpeg_decoder->packet->data = NULL;
+        ffmpeg_decoder->packet->size = 0;
+        decode(ffmpeg_decoder, outfile);
+        printf("audio decoded!\n");
+
+        fclose(outfile);
+        decoder_free(ffmpeg_decoder);
+        encoder_free(ffmpeg_encoder);
+
+
+        //TODO(amatej): this leaks the frame..
+        //flush encoder
+        ffmpeg_encoder->encoded_frame = NULL;
+        encode(ffmpeg_encoder, video_outfile);
+
+        //TODO(amatej): the end bytes specify foramt might be different for different coded?
+        uint8_t endcode[] = { 0, 0, 1, 0xb7 };
+        if (ffmpeg_encoder->video_codec->id == AV_CODEC_ID_MPEG1VIDEO || ffmpeg_encoder->video_codec->id == AV_CODEC_ID_MPEG2VIDEO)
+            fwrite(endcode, 1, sizeof(endcode), video_outfile);
+        fclose(video_outfile);
+
     }
 
     // delete the created objects
