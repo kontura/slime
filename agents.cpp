@@ -277,6 +277,8 @@ int sensitivity_input = 0;
 int sensitivity = 20;
 
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    (void)scancode;
+    (void)mods;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 
@@ -288,6 +290,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 }
 
 void window_close_callback(GLFWwindow* window) {
+    (void)window;
     stopCava();
 }
 
