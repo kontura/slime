@@ -33,6 +33,9 @@
 #define SENSOR_SIZE 2
 #define CAVA_BARS 30
 
+// 1024 is samples count chosen by cava, *2 for 16bit samples, *2 for two channels
+#define CAVA_BYTES_READ_COUNT 1024*2*2
+
 
 std::string read_file(std::string path) {
 
@@ -426,9 +429,6 @@ int main(int argc, char **argv) {
     glfwSetWindowCloseCallback(window, window_close_callback);
 
     // load and decode song
-    // TODO(amatej): this might be a separe function... in ffmpeg module
-    //TODO(amatej): tmp file output
-
     Decoder *ffmpeg_decoder = NULL;
     Encoder *ffmpeg_encoder = NULL;
     FILE *outfile = NULL;
@@ -443,15 +443,19 @@ int main(int argc, char **argv) {
 
     uint8_t cava_input[CAVA_BARS];
     uint8_t cava_input_read[CAVA_BARS];
-    size_t written_samples = 0;
     int encode_video = 1, encode_audio = 1;
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
         int vals_read = CAVA_BARS;
         if (cmdline_file_input_path) {
-                get_audio_samples(ffmpeg_decoder, outfile, &written_samples);
-                printf("written_samples: %lu\n", written_samples);
-            written_samples = 0;
+            if (ffmpeg_decoder->samples_buffer_count <= CAVA_BYTES_READ_COUNT) {
+                load_audio_samples(ffmpeg_decoder);
+            }
+            fwrite(ffmpeg_decoder->samples_buffer, 1, CAVA_BYTES_READ_COUNT, outfile);
+            ffmpeg_decoder->samples_buffer_count -= CAVA_BYTES_READ_COUNT;
+            memmove(ffmpeg_decoder->samples_buffer,
+                    ffmpeg_decoder->samples_buffer+CAVA_BYTES_READ_COUNT,
+                    ffmpeg_decoder->samples_buffer_count);
             while (vals_read == CAVA_BARS) {
                 vals_read = read(fd, cava_input_read, CAVA_BARS);
                 if (vals_read == CAVA_BARS) {
@@ -633,7 +637,8 @@ int main(int argc, char **argv) {
         /* flush the decoder */
         ffmpeg_decoder->packet->data = NULL;
         ffmpeg_decoder->packet->size = 0;
-        decode(ffmpeg_decoder, outfile);
+        //TODO(amatej): this just adds bytes to samples_buffer nothing is processing them...
+        decode(ffmpeg_decoder);
 
         fclose(outfile);
         decoder_free(ffmpeg_decoder);

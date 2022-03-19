@@ -9,6 +9,7 @@
 
 Decoder *decoder_new(const char *infile) {
     Decoder *decoder = (Decoder *) malloc(sizeof(Decoder));
+    memset(decoder, 0, sizeof(Decoder));
 
     decoder->packet = av_packet_alloc();
 
@@ -398,10 +399,9 @@ void encoder_free(Encoder *encoder) {
     avformat_free_context(encoder->output_context);
 }
 
-size_t decode(Decoder *decoder, FILE *outfile) {
+void decode(Decoder *decoder) {
     int i, ch;
     int ret, data_size;
-    size_t total_written_samples = 0;
 
     /* send the packet with the compressed data to the decoder */
     ret = avcodec_send_packet(decoder->context, decoder->packet);
@@ -414,7 +414,7 @@ size_t decode(Decoder *decoder, FILE *outfile) {
     while (ret >= 0) {
         ret = avcodec_receive_frame(decoder->context, decoder->decoded_frame);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-            return total_written_samples;
+            return;
         } else if (ret < 0) {
             fprintf(stderr, "Error during decoding\n");
             exit(1);
@@ -426,16 +426,26 @@ size_t decode(Decoder *decoder, FILE *outfile) {
             exit(1);
         }
 
-        total_written_samples += decoder->decoded_frame->nb_samples;
+
+        size_t new_samples_bytes_count = decoder->context->channels * decoder->decoded_frame->nb_samples * data_size;
+        decoder->samples_buffer = (uint8_t*) realloc(decoder->samples_buffer, decoder->samples_buffer_count + new_samples_bytes_count);
+
+        size_t total = 0;
         for (i = 0; i < decoder->decoded_frame->nb_samples; i++)
-            for (ch = 0; ch < decoder->context->channels; ch++)
-                fwrite(decoder->decoded_frame->data[ch] + data_size*i, 1, data_size, outfile);
+            for (ch = 0; ch < decoder->context->channels; ch++) {
+                total += data_size;
+                memmove(decoder->samples_buffer + decoder->samples_buffer_count,
+                        decoder->decoded_frame->data[ch] + data_size*i,
+                        data_size);
+                decoder->samples_buffer_count += data_size;
+            }
+        //printf("total: %i x new_samples_count: %lu\n", total, new_samples_bytes_count);
     }
 
-    return total_written_samples;
+    return;
 }
 
-size_t get_audio_samples(Decoder *ffmpeg_decoder, FILE *outfile, size_t *written_samples) {
+size_t load_audio_samples(Decoder *ffmpeg_decoder) {
     int ret;
     int len;
     if (!(ffmpeg_decoder->decoded_frame)) {
@@ -458,7 +468,7 @@ size_t get_audio_samples(Decoder *ffmpeg_decoder, FILE *outfile, size_t *written
     ffmpeg_decoder->data_size -= ret;
 
     if (ffmpeg_decoder->packet->size) {
-        *written_samples += decode(ffmpeg_decoder, outfile);
+        decode(ffmpeg_decoder);
     }
 
     if (ffmpeg_decoder->data_size < AUDIO_REFILL_THRESH) {
