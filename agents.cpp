@@ -16,12 +16,7 @@
 #include "cava.hpp"
 #include "capture.hpp"
 #include "ffmpeg_decoder.hpp"
-
-//#define WIDTH 2560
-//#define HEIGHT 1440
-#define WIDTH 1920
-#define HEIGHT 1080
-#define AGENTS_COUNT WIDTH
+#include "consts.hpp"
 
 #define EVAPORATE_SPEED 0.20
 #define DIFFUSE_SPEED 33.2
