@@ -460,7 +460,9 @@ int main(int argc, char **argv) {
                 if (vals_read == CAVA_BARS) {
                     memcpy(cava_input, cava_input_read, CAVA_BARS);
                 }
+                printf("reading\n");
             }
+            printf("\n\n");
             //printf("vals_read: %i\n\n", vals_read);
         } else {
             // real time mode -> if we are not fast enough we have to skip cava outputs
