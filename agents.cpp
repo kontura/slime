@@ -282,7 +282,7 @@ int sensitivity = 20;
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     (void)scancode;
     (void)mods;
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    if ((key == GLFW_KEY_ESCAPE || key == GLFW_KEY_Q) && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 
     if (key == GLFW_KEY_J && action == GLFW_PRESS)
