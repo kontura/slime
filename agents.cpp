@@ -33,9 +33,6 @@
 #define SENSOR_SIZE 2
 #define CAVA_BARS 30
 
-// 1024 is samples count chosen by cava, *2 for 16bit samples, *2 for two channels
-#define CAVA_BYTES_READ_COUNT 1024*2*2
-
 
 std::string read_file(std::string path) {
 
@@ -437,7 +434,7 @@ int main(int argc, char **argv) {
         outfile = fopen(internal_cava_ffmpeg_fifo, "wb");
 
         ffmpeg_decoder = decoder_new("../mamas_gun.mp2");
-        ffmpeg_encoder = encoder_new("test_video.mkv");
+        ffmpeg_encoder = encoder_new("test_video.m4a");
 
     }
 
@@ -452,10 +449,6 @@ int main(int argc, char **argv) {
                 load_audio_samples(ffmpeg_decoder);
             }
             fwrite(ffmpeg_decoder->samples_buffer, 1, CAVA_BYTES_READ_COUNT, outfile);
-            ffmpeg_decoder->samples_buffer_count -= CAVA_BYTES_READ_COUNT;
-            memmove(ffmpeg_decoder->samples_buffer,
-                    ffmpeg_decoder->samples_buffer+CAVA_BYTES_READ_COUNT,
-                    ffmpeg_decoder->samples_buffer_count);
             while (vals_read == CAVA_BARS) {
                 vals_read = read(fd, cava_input_read, CAVA_BARS);
                 if (vals_read == CAVA_BARS) {
@@ -502,7 +495,7 @@ int main(int argc, char **argv) {
         //    printf("=");
         //}
         //TODO(amatej): what is the magic number 5120*8? I do not remember..
-        float float_max = (float)max / (float)5120* 6;
+        float float_max = (float)max / (float)5120* 3;
         //printf("\n");
         //printf("max1: %f\n", float_max);
         //printf("passing to shader: %f\n\n", 0.3f + float_max*MOVE_SPEED);
@@ -517,7 +510,7 @@ int main(int argc, char **argv) {
         //for (unsigned int i=0;i<max;i++) {
         //    printf("=");
         //}
-        float float_max_type2 = (float)max / (float)5120* 12;
+        float float_max_type2 = (float)max / (float)5120* 6;
 
         glfwPollEvents();
 
@@ -616,7 +609,13 @@ int main(int argc, char **argv) {
                            ffmpeg_encoder->video_st.st,
                            ffmpeg_encoder->video_st.frame,
                            ffmpeg_encoder->video_st.tmp_pkt);
-            encode_audio = write_audio_frame(ffmpeg_encoder->output_context, &(ffmpeg_encoder->audio_st));
+            encode_audio = write_audio_frame(ffmpeg_decoder, ffmpeg_encoder->output_context, &(ffmpeg_encoder->audio_st));
+
+            // move audio samples
+            ffmpeg_decoder->samples_buffer_count -= CAVA_BYTES_READ_COUNT;
+            memmove(ffmpeg_decoder->samples_buffer,
+                    ffmpeg_decoder->samples_buffer+CAVA_BYTES_READ_COUNT,
+                    ffmpeg_decoder->samples_buffer_count);
         }
 
         // finally swap buffers

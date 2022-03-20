@@ -4,7 +4,8 @@
 
 #include "ffmpeg_decoder.hpp"
 
-#define STREAM_FRAME_RATE 25
+//#define STREAM_FRAME_RATE 43.06640625
+#define STREAM_FRAME_RATE 43
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt */
 
 Decoder *decoder_new(const char *infile) {
@@ -92,8 +93,7 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
 
     switch ((*codec)->type) {
     case AVMEDIA_TYPE_AUDIO:
-        c->sample_fmt  = (*codec)->sample_fmts ?
-            (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
+        c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
         c->bit_rate    = 64000;
         c->sample_rate = 44100;
         if ((*codec)->supported_samplerates) {
@@ -119,7 +119,7 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
     case AVMEDIA_TYPE_VIDEO:
         c->codec_id = codec_id;
 
-        c->bit_rate = 400000;
+        c->bit_rate = 8000000;
         /* Resolution must be a multiple of two. */
         c->width    = WIDTH;
         c->height   = HEIGHT;
@@ -271,10 +271,13 @@ static void open_audio(const AVCodec *codec, OutputStream *ost, AVDictionary *op
     /* increment frequency by 110 Hz per second */
     ost->tincr2 = 2 * M_PI * 110.0 / c->sample_rate / c->sample_rate;
 
-    if (c->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)
+    if (c->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE) {
         nb_samples = 10000;
-    else
+        printf("variable size\n");
+    } else {
         nb_samples = c->frame_size;
+        printf("invariable size: %i\n", c->frame_size);
+    }
 
     ost->frame     = alloc_audio_frame(c->sample_fmt, c->channel_layout,
                                        c->sample_rate, nb_samples);
@@ -522,7 +525,6 @@ int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
     return ret == AVERROR_EOF ? 1 : 0;
 }
 
-#define STREAM_DURATION   10.0
 /* Prepare a 16 bit dummy audio frame of 'frame_size' samples and
  * 'nb_channels' channels. */
 static AVFrame *get_audio_frame(OutputStream *ost)
@@ -530,11 +532,7 @@ static AVFrame *get_audio_frame(OutputStream *ost)
     AVFrame *frame = ost->tmp_frame;
     int j, i, v;
     int16_t *q = (int16_t*)frame->data[0];
-
-    /* check if we want to generate more frames */
-    //if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-    //                  STREAM_DURATION, (AVRational){ 1, 1 }) > 0)
-    //    return NULL;
+    printf("nb_samples: %i\n", frame->nb_samples);
 
     for (j = 0; j <frame->nb_samples; j++) {
         v = (int)(sin(ost->t) * 10000);
@@ -554,16 +552,32 @@ static AVFrame *get_audio_frame(OutputStream *ost)
  * encode one audio frame and send it to the muxer
  * return 1 when encoding is finished, 0 otherwise
  */
-int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
+int write_audio_frame(Decoder *decoder, AVFormatContext *oc, OutputStream *ost)
 {
     AVCodecContext *c;
-    AVFrame *frame;
     int ret;
     int dst_nb_samples;
 
     c = ost->enc;
 
-    frame = get_audio_frame(ost);
+    //AVFrame *frame = ost->tmp_frame;
+    //memcpy(frame->data, decoder->samples_buffer, CAVA_BYTES_READ_COUNT);
+    //frame->pts = ost->next_pts;
+    //ost->next_pts  += frame->nb_samples;
+    //frame = get_audio_frame(ost);
+
+
+    AVFrame *frame = ost->tmp_frame;
+    int j, i, v;
+    int16_t *q = (int16_t*)frame->data[0];
+
+    memcpy(q, decoder->samples_buffer, CAVA_BYTES_READ_COUNT);
+
+    frame->pts = ost->next_pts;
+    ost->next_pts  += frame->nb_samples;
+
+
+
 
     if (frame) {
         /* convert samples from native format to destination codec format, using the resampler */
