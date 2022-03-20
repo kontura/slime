@@ -295,7 +295,7 @@ void window_close_callback(GLFWwindow* window) {
 }
 
 int main(int argc, char **argv) {
-    const char *cmdline_file_input_path = NULL;
+    char *cmdline_file_input_path = NULL;
     const char *internal_cava_ffmpeg_fifo = NULL;
     if (argc == 2) {
         // we have a file input
@@ -429,13 +429,19 @@ int main(int argc, char **argv) {
     Decoder *ffmpeg_decoder = NULL;
     Encoder *ffmpeg_encoder = NULL;
     FILE *outfile = NULL;
-    const char *video_outfile_name = "test.video";
     if (cmdline_file_input_path != NULL) {
         outfile = fopen(internal_cava_ffmpeg_fifo, "wb");
+        ffmpeg_decoder = decoder_new(cmdline_file_input_path);
 
-        ffmpeg_decoder = decoder_new("../mamas_gun.mp2");
-        ffmpeg_encoder = encoder_new("test_video.m4a");
+        const char *my_suffix = "_slime.m4a";
+        char *last_dot_in_input = strrchr(cmdline_file_input_path, '.');
+        *last_dot_in_input = '\0';
+        size_t len = strlen(cmdline_file_input_path) + strlen(my_suffix);
+        char *dest_name = (char*)malloc(len);
+        sprintf(dest_name, "%s%s", cmdline_file_input_path, my_suffix);
 
+        ffmpeg_encoder = encoder_new(dest_name);
+        free(dest_name);
     }
 
     uint8_t cava_input[CAVA_BARS];
