@@ -447,6 +447,7 @@ int main(int argc, char **argv) {
     uint8_t cava_input[CAVA_BARS];
     uint8_t cava_input_read[CAVA_BARS];
     int encode_video = 1, encode_audio = 1;
+    unsigned char *pic = (unsigned char*) malloc(WIDTH*HEIGHT*3);
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
         int vals_read = CAVA_BARS;
@@ -599,7 +600,6 @@ int main(int argc, char **argv) {
                 exit(1);
             }
 
-            unsigned char pic[WIDTH*HEIGHT*3];
             glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE, pic);
             SwsContext * ctx = sws_getContext(WIDTH, HEIGHT, AV_PIX_FMT_RGB24,
                                               ffmpeg_encoder->video_st.enc->width,
@@ -639,6 +639,8 @@ int main(int argc, char **argv) {
         //printf("fps: %f\n", fps_v);
         float dt = 1.0f/fps_v;
     }
+
+    free(pic);
 
     if (cmdline_file_input_path != NULL) {
         /* flush the decoder */
