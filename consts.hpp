@@ -7,6 +7,8 @@
 //#define HEIGHT 1080
 #define WIDTH 1280
 #define HEIGHT 720
+//#define WIDTH 480
+//#define HEIGHT 360
 #define AGENTS_COUNT WIDTH
 
 // 1024 is samples count chosen by cava, *2 for 16bit samples, *2 for two channels
