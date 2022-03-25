@@ -569,7 +569,7 @@ int main(int argc, char **argv) {
         glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
         // We use 40 here because it is a common divider of 1080 and 1920 -> eatch pixel is taken care of in our texture
         // When setting these don't forget about the local_size in the shader it self
-        glDispatchCompute(WIDTH/40, HEIGHT/40, 1);
+        glDispatchCompute(WIDTH/20, HEIGHT/20, 1);
 
         if (tex_order) {
             tex_order = 0;
