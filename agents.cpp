@@ -624,6 +624,11 @@ int main(int argc, char **argv) {
             memmove(ffmpeg_decoder->samples_buffer,
                     ffmpeg_decoder->samples_buffer+CAVA_BYTES_READ_COUNT,
                     ffmpeg_decoder->samples_buffer_count);
+
+            //printf("samples_buffer_count: %li\n", ffmpeg_decoder->samples_buffer_count);
+            if (ffmpeg_decoder->samples_buffer_count <= 0) {
+                glfwSetWindowShouldClose(window, 1);
+            }
         }
 
         // finally swap buffers
