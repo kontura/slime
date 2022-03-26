@@ -525,29 +525,6 @@ int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
     return ret == AVERROR_EOF ? 1 : 0;
 }
 
-/* Prepare a 16 bit dummy audio frame of 'frame_size' samples and
- * 'nb_channels' channels. */
-static AVFrame *get_audio_frame(OutputStream *ost)
-{
-    AVFrame *frame = ost->tmp_frame;
-    int j, i, v;
-    int16_t *q = (int16_t*)frame->data[0];
-    printf("nb_samples: %i\n", frame->nb_samples);
-
-    for (j = 0; j <frame->nb_samples; j++) {
-        v = (int)(sin(ost->t) * 10000);
-        for (i = 0; i < ost->enc->channels; i++)
-            *q++ = v;
-        ost->t     += ost->tincr;
-        ost->tincr += ost->tincr2;
-    }
-
-    frame->pts = ost->next_pts;
-    ost->next_pts  += frame->nb_samples;
-
-    return frame;
-}
-
 /*
  * encode one audio frame and send it to the muxer
  * return 1 when encoding is finished, 0 otherwise
@@ -560,23 +537,13 @@ int write_audio_frame(Decoder *decoder, AVFormatContext *oc, OutputStream *ost)
 
     c = ost->enc;
 
-    //AVFrame *frame = ost->tmp_frame;
-    //memcpy(frame->data, decoder->samples_buffer, CAVA_BYTES_READ_COUNT);
-    //frame->pts = ost->next_pts;
-    //ost->next_pts  += frame->nb_samples;
-    //frame = get_audio_frame(ost);
-
-
     AVFrame *frame = ost->tmp_frame;
-    int j, i, v;
     int16_t *q = (int16_t*)frame->data[0];
 
     memcpy(q, decoder->samples_buffer, CAVA_BYTES_READ_COUNT);
 
     frame->pts = ost->next_pts;
     ost->next_pts  += frame->nb_samples;
-
-
 
 
     if (frame) {
@@ -610,22 +577,3 @@ int write_audio_frame(Decoder *decoder, AVFormatContext *oc, OutputStream *ost)
 
     return write_frame(oc, c, ost->st, frame, ost->tmp_pkt);
 }
-
-//void make_example_video(Encoder *encoder) {
-//    int encode_video = 1, encode_audio = 1;
-//
-//    while (encode_video || encode_audio) {
-//        /* select the stream to encode */
-//        if (encode_video && (!encode_audio ||
-//                             av_compare_ts(encoder->video_st.next_pts,
-//                                           encoder->video_st.enc->time_base,
-//                                           encoder->audio_st.next_pts,
-//                                           encoder->audio_st.enc->time_base) <= 0)) {
-//            encode_video = !write_video_frame(encoder->output_context, &(encoder->video_st));
-//        } else {
-//            encode_audio = !write_audio_frame(encoder->output_context, &(encoder->audio_st));
-//        }
-//    }
-//
-//
-//}

@@ -446,7 +446,6 @@ int main(int argc, char **argv) {
 
     uint8_t cava_input[CAVA_BARS];
     uint8_t cava_input_read[CAVA_BARS];
-    int encode_video = 1, encode_audio = 1;
     unsigned char *pic = (unsigned char*) malloc(WIDTH*HEIGHT*3);
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
@@ -612,12 +611,12 @@ int main(int argc, char **argv) {
                       ffmpeg_encoder->video_st.frame->linesize);
             ffmpeg_encoder->video_st.frame->pts = ffmpeg_encoder->video_st.next_pts++;
 
-            encode_video = write_frame(ffmpeg_encoder->output_context,
-                           ffmpeg_encoder->video_st.enc,
-                           ffmpeg_encoder->video_st.st,
-                           ffmpeg_encoder->video_st.frame,
-                           ffmpeg_encoder->video_st.tmp_pkt);
-            encode_audio = write_audio_frame(ffmpeg_decoder, ffmpeg_encoder->output_context, &(ffmpeg_encoder->audio_st));
+            write_frame(ffmpeg_encoder->output_context,
+                        ffmpeg_encoder->video_st.enc,
+                        ffmpeg_encoder->video_st.st,
+                        ffmpeg_encoder->video_st.frame,
+                        ffmpeg_encoder->video_st.tmp_pkt);
+            write_audio_frame(ffmpeg_decoder, ffmpeg_encoder->output_context, &(ffmpeg_encoder->audio_st));
 
             // move audio samples
             ffmpeg_decoder->samples_buffer_count -= CAVA_BYTES_READ_COUNT;

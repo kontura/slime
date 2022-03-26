@@ -74,6 +74,5 @@ void encoder_free(Encoder *encoder);
 void decode(Decoder *decoder);
 
 size_t load_audio_samples(Decoder *ffmpeg_decoder);
-void make_example_video(Encoder *encoder);
 int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c, AVStream *st, AVFrame *frame, AVPacket *pkt);
 int write_audio_frame(Decoder *decoder, AVFormatContext *oc, OutputStream *ost);
