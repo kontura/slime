@@ -23,6 +23,8 @@
 #include "ffmpeg_decoder.hpp"
 #include "consts.hpp"
 
+#include <fftw3.h>
+
 #define EVAPORATE_SPEED 0.20
 #define DIFFUSE_SPEED 33.2
 #define MOVE_SPEED 20.0
@@ -32,6 +34,9 @@
 #define SENSOR_OFFSET_DST 5
 #define SENSOR_SIZE 2
 #define CAVA_BARS 30
+
+#define FFTW_BUFFER_SIZE 1024 * 2
+#define FFTW_SAMPLES 1024
 
 
 std::string read_file(std::string path) {
@@ -296,20 +301,14 @@ void window_close_callback(GLFWwindow* window) {
 
 int main(int argc, char **argv) {
     char *cmdline_file_input_path = NULL;
-    const char *internal_cava_ffmpeg_fifo = NULL;
     if (argc == 2) {
         // we have a file input
-        internal_cava_ffmpeg_fifo = "./internal_cava_ffmpeg_fifo";
         cmdline_file_input_path = argv[1];
-        if (mkfifo(internal_cava_ffmpeg_fifo, 0664) == -1) {
-            fprintf(stderr, "Could not create internal fifo to communicate between cava and ffmpeg (maybe it already exists?\n");
-            //exit(1);
-        }
     }
 
     int tex_order = 1;
 
-    rewriteConfig(sensitivity, internal_cava_ffmpeg_fifo);
+    rewriteConfig(sensitivity, NULL);
     runCava();
 
     GLFWwindow *window = initializeOpenGl();
@@ -428,9 +427,11 @@ int main(int argc, char **argv) {
     // load and decode song
     Decoder *ffmpeg_decoder = NULL;
     Encoder *ffmpeg_encoder = NULL;
-    FILE *outfile = NULL;
+    double *in_raw_fftw_l = NULL;
+    double *in_raw_fftw_r = NULL;
+    fftw_plan fftw_plan_l, fftw_plan_r;
+    fftw_complex *out_complex_l, *out_complex_r;
     if (cmdline_file_input_path != NULL) {
-        outfile = fopen(internal_cava_ffmpeg_fifo, "wb");
         ffmpeg_decoder = decoder_new(cmdline_file_input_path);
 
         const char *my_suffix = "_slime.m4a";
@@ -442,7 +443,16 @@ int main(int argc, char **argv) {
 
         ffmpeg_encoder = encoder_new(dest_name);
         free(dest_name);
+        in_raw_fftw_l = fftw_alloc_real(FFTW_BUFFER_SIZE);
+        in_raw_fftw_r = fftw_alloc_real(FFTW_BUFFER_SIZE);
+        out_complex_l = fftw_alloc_complex(FFTW_BUFFER_SIZE/2 + 1);
+        out_complex_r = fftw_alloc_complex(FFTW_BUFFER_SIZE/2 + 1);
+        memset(out_complex_l, 0, (FFTW_BUFFER_SIZE/2 + 1) * sizeof(fftw_complex));
+        memset(out_complex_r, 0, (FFTW_BUFFER_SIZE/2 + 1) * sizeof(fftw_complex));
+        fftw_plan_l = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_l, out_complex_l, FFTW_MEASURE);
+        fftw_plan_r = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_r, out_complex_r, FFTW_MEASURE);
     }
+
 
     uint8_t cava_input[CAVA_BARS];
     uint8_t cava_input_read[CAVA_BARS];
@@ -454,16 +464,12 @@ int main(int argc, char **argv) {
             if (ffmpeg_decoder->samples_buffer_count <= CAVA_BYTES_READ_COUNT) {
                 load_audio_samples(ffmpeg_decoder);
             }
-            fwrite(ffmpeg_decoder->samples_buffer, 1, CAVA_BYTES_READ_COUNT, outfile);
-            while (vals_read == CAVA_BARS) {
-                vals_read = read(fd, cava_input_read, CAVA_BARS);
-                if (vals_read == CAVA_BARS) {
-                    memcpy(cava_input, cava_input_read, CAVA_BARS);
-                }
-                printf("reading\n");
+            int16_t *input = (int16_t*) ffmpeg_decoder->samples_buffer;
+            for (int i = 0; i<FFTW_SAMPLES; i+=2) {
+                in_raw_fftw_l[i/2] = input[i];
+                //TODO(amatej): maybe do both left and right .. but for now.. good enough
             }
-            printf("\n\n");
-            //printf("vals_read: %i\n\n", vals_read);
+            fftw_execute(fftw_plan_l);
         } else {
             // real time mode -> if we are not fast enough we have to skip cava outputs
             while (vals_read == CAVA_BARS) {
@@ -473,52 +479,62 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        //if (vals_read != CAVA_BARS && cmdline_file_input_path) {
-        //    glfwSetWindowShouldClose(window, 1);
-        //}
 
         if (sensitivity_input > 0) {
             sensitivity += 5;
             sensitivity_input--;
-            rewriteConfig(sensitivity, internal_cava_ffmpeg_fifo);
+            rewriteConfig(sensitivity, NULL);
             printf("setting sensitivity: %i\n", sensitivity);
             reloadConfig();
         }
         if (sensitivity_input < 0) {
             sensitivity -= 5;
             sensitivity_input++;
-            rewriteConfig(sensitivity, internal_cava_ffmpeg_fifo);
+            rewriteConfig(sensitivity, NULL);
             printf("setting sensitivity: %i\n", sensitivity);
             reloadConfig();
         }
 
-        uint8_t max = 0;
-        for (int i=0;i<8;i++) {
-            if (max < cava_input[i]) {
-                max = cava_input[i];
+        float float_max, float_max_type2;
+
+        if (!cmdline_file_input_path) {
+            uint8_t max_low = 0;
+            uint8_t max_high = 0;
+            for (int i=0;i<8;i++) {
+                if (max_low < cava_input[i]) {
+                    max_low = cava_input[i];
+                }
+                printf("%" PRIi8 " ", cava_input[i]);
             }
-            //printf("%" PRIi8 " ", cava_input[i]);
-        }
-        //for (unsigned int i=0;i<max;i++) {
-        //    printf("=");
-        //}
-        //TODO(amatej): what is the magic number 5120*8? I do not remember..
-        float float_max = (float)max / (float)5120* 3;
-        //printf("\n");
-        //printf("max1: %f\n", float_max);
-        //printf("passing to shader: %f\n\n", 0.3f + float_max*MOVE_SPEED);
-        max = 0;
-        for (int i=8;i<CAVA_BARS;i++) {
-            if (max < cava_input[i]) {
-                max = cava_input[i];
+            for (int i=8;i<CAVA_BARS;i++) {
+                if (max_high < cava_input[i]) {
+                    max_high = cava_input[i];
+                }
+                printf("%" PRIi8 " ", cava_input[i]);
             }
-            //printf("%" PRIi8 " ", cava_input[i]);
+            printf("\n");
+            float_max = (float)max_low / (float)5120* 3;
+            float_max_type2 = (float)max_high / (float)5120* 6;
+        } else {
+            double max_low = 0;
+            double max_high = 0;
+            for (int i=0;i<512;i++) {
+                if (max_low < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
+                    max_low = hypot(out_complex_l[i][0], out_complex_l[i][1]);
+                }
+                //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
+            }
+            for (int i=512;i<(FFTW_BUFFER_SIZE/2+1);i++) {
+                if (max_high < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
+                    max_high = hypot(out_complex_l[i][0], out_complex_l[i][1]);
+                }
+                //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
+            }
+            float_max = (float)max_low / (float)51200000* 5;
+            float_max_type2 = (float)max_high / (float)512000* 4;
         }
-        //printf("\n");
-        //for (unsigned int i=0;i<max;i++) {
-        //    printf("=");
-        //}
-        float float_max_type2 = (float)max / (float)5120* 6;
+
+        printf("maxes are: %f and %f\n", float_max, float_max_type2);
 
         glfwPollEvents();
 
@@ -624,7 +640,7 @@ int main(int argc, char **argv) {
                     ffmpeg_decoder->samples_buffer+CAVA_BYTES_READ_COUNT,
                     ffmpeg_decoder->samples_buffer_count);
 
-            //printf("samples_buffer_count: %li\n", ffmpeg_decoder->samples_buffer_count);
+            printf("samples_buffer_count: %li\n", ffmpeg_decoder->samples_buffer_count);
             if (ffmpeg_decoder->samples_buffer_count <= 0) {
                 glfwSetWindowShouldClose(window, 1);
             }
@@ -653,9 +669,17 @@ int main(int argc, char **argv) {
         //TODO(amatej): this just adds bytes to samples_buffer nothing is processing them...
         decode(ffmpeg_decoder);
 
-        fclose(outfile);
         decoder_free(ffmpeg_decoder);
         encoder_free(ffmpeg_encoder);
+
+        fftw_free(in_raw_fftw_l);
+        fftw_free(in_raw_fftw_r);
+
+        fftw_destroy_plan(fftw_plan_l);
+        fftw_destroy_plan(fftw_plan_r);
+
+        fftw_free(out_complex_l);
+        fftw_free(out_complex_r);
     }
 
     // delete the created objects
