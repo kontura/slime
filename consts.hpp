@@ -11,6 +11,9 @@
 //#define HEIGHT 360
 #define AGENTS_COUNT WIDTH
 
-// 1024 is samples count chosen by cava, *2 for 16bit samples, *2 for two channels
-#define CAVA_BYTES_READ_COUNT 1024*2*2
+#define FFTW_SAMPLES 1024
+// * 2 since we have two channels
+#define FFTW_BUFFER_SIZE FFTW_SAMPLES * 2
+// *2 for 16bit samples
+#define FFTW_BUFFER_BYTES FFTW_BUFFER_SIZE*2
 

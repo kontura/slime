@@ -35,10 +35,6 @@
 #define SENSOR_SIZE 2
 #define CAVA_BARS 30
 
-#define FFTW_BUFFER_SIZE 1024 * 2
-#define FFTW_SAMPLES 1024
-
-
 std::string read_file(std::string path) {
 
   std::ifstream ifs(path);
@@ -461,7 +457,7 @@ int main(int argc, char **argv) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
         int vals_read = CAVA_BARS;
         if (cmdline_file_input_path) {
-            if (ffmpeg_decoder->samples_buffer_count <= CAVA_BYTES_READ_COUNT) {
+            if (ffmpeg_decoder->samples_buffer_count <= FFTW_BUFFER_BYTES) {
                 load_audio_samples(ffmpeg_decoder);
             }
             int16_t *input = (int16_t*) ffmpeg_decoder->samples_buffer;
@@ -635,9 +631,9 @@ int main(int argc, char **argv) {
             write_audio_frame(ffmpeg_decoder, ffmpeg_encoder->output_context, &(ffmpeg_encoder->audio_st));
 
             // move audio samples
-            ffmpeg_decoder->samples_buffer_count -= CAVA_BYTES_READ_COUNT;
+            ffmpeg_decoder->samples_buffer_count -= FFTW_BUFFER_BYTES;
             memmove(ffmpeg_decoder->samples_buffer,
-                    ffmpeg_decoder->samples_buffer+CAVA_BYTES_READ_COUNT,
+                    ffmpeg_decoder->samples_buffer+FFTW_BUFFER_BYTES,
                     ffmpeg_decoder->samples_buffer_count);
 
             printf("samples_buffer_count: %li\n", ffmpeg_decoder->samples_buffer_count);

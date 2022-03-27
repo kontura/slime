@@ -540,7 +540,7 @@ int write_audio_frame(Decoder *decoder, AVFormatContext *oc, OutputStream *ost)
     AVFrame *frame = ost->tmp_frame;
     int16_t *q = (int16_t*)frame->data[0];
 
-    memcpy(q, decoder->samples_buffer, CAVA_BYTES_READ_COUNT);
+    memcpy(q, decoder->samples_buffer, FFTW_BUFFER_BYTES);
 
     frame->pts = ost->next_pts;
     ost->next_pts  += frame->nb_samples;
