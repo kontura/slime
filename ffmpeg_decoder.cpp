@@ -265,12 +265,6 @@ static void open_audio(const AVCodec *codec, OutputStream *ost, AVDictionary *op
         exit(1);
     }
 
-    /* init signal generator */
-    ost->t     = 0;
-    ost->tincr = 2 * M_PI * 110.0 / c->sample_rate;
-    /* increment frequency by 110 Hz per second */
-    ost->tincr2 = 2 * M_PI * 110.0 / c->sample_rate / c->sample_rate;
-
     if (c->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE) {
         nb_samples = 10000;
         printf("variable size\n");

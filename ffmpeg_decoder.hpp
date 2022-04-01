@@ -50,8 +50,6 @@ typedef struct OutputStream {
 
     AVPacket *tmp_pkt;
 
-    float t, tincr, tincr2;
-
     struct SwsContext *sws_ctx;
     struct SwrContext *swr_ctx;
 } OutputStream;
