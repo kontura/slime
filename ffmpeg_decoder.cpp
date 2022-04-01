@@ -4,8 +4,6 @@
 
 #include "ffmpeg_decoder.hpp"
 
-//#define STREAM_FRAME_RATE 43.06640625
-#define STREAM_FRAME_RATE 43
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt */
 
 Decoder *decoder_new(const char *infile) {
@@ -95,12 +93,12 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
     case AVMEDIA_TYPE_AUDIO:
         c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
         c->bit_rate    = 64000;
-        c->sample_rate = 44100;
+        c->sample_rate = OUTPUT_AUDIO_SAMPLE_RATE;
         if ((*codec)->supported_samplerates) {
             c->sample_rate = (*codec)->supported_samplerates[0];
             for (i = 0; (*codec)->supported_samplerates[i]; i++) {
-                if ((*codec)->supported_samplerates[i] == 44100)
-                    c->sample_rate = 44100;
+                if ((*codec)->supported_samplerates[i] == OUTPUT_AUDIO_SAMPLE_RATE)
+                    c->sample_rate = OUTPUT_AUDIO_SAMPLE_RATE;
             }
         }
         c->channels        = av_get_channel_layout_nb_channels(c->channel_layout);
@@ -127,7 +125,13 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
          * of which frame timestamps are represented. For fixed-fps content,
          * timebase should be 1/framerate and timestamp increments should be
          * identical to 1. */
-        ost->st->time_base = (AVRational){ 1, STREAM_FRAME_RATE };
+        //NOTE(amatej): I am disregarding the above advice from the example in order
+        //              to match the video frame rate to the audio sample rate.
+        //              I couldn't find an int frame rate that would work 44100hz,
+        //              1024 sample count per frame or even any other valid combination
+        //              I have tested this and it seems to work fine. Even with the metronome
+        //              input the audio and video were still in sync after 20min.
+        ost->st->time_base = (AVRational){ FFTW_SAMPLES, OUTPUT_AUDIO_SAMPLE_RATE };
         c->time_base       = ost->st->time_base;
 
         c->gop_size      = 12; /* emit one intra frame every twelve frames at most */
@@ -555,6 +559,7 @@ int write_audio_frame(Decoder *decoder, AVFormatContext *oc, OutputStream *ost)
         if (ret < 0)
             exit(1);
 
+        //TODO(amatej): I don't need to copy it into the frame, I can input decoder->samples_buffer directly
         /* convert to destination format */
         ret = swr_convert(ost->swr_ctx,
                           ost->frame->data, dst_nb_samples,

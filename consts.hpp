@@ -11,6 +11,7 @@
 //#define HEIGHT 360
 #define AGENTS_COUNT WIDTH
 
+#define OUTPUT_AUDIO_SAMPLE_RATE 44100
 #define FFTW_SAMPLES 1024
 // * 2 since we have two channels
 #define FFTW_BUFFER_SIZE FFTW_SAMPLES * 2
