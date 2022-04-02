@@ -17,6 +17,40 @@ extern "C" {
     #include <libswresample/swresample.h>
 }
 
+#ifdef av_err2str
+#undef av_err2str
+#include <string>
+av_always_inline std::string av_err2string(int errnum) {
+    char str[AV_ERROR_MAX_STRING_SIZE];
+    return av_make_error_string(str, AV_ERROR_MAX_STRING_SIZE, errnum);
+}
+#define av_err2str(err) av_err2string(err).c_str()
+#endif  // av_err2str
+
+#ifdef av_ts2str
+#undef av_ts2str
+#include <string>
+av_always_inline std::string av_ts2string(int64_t ts) {
+    char buf[AV_TS_MAX_STRING_SIZE];
+    if (ts == AV_NOPTS_VALUE) snprintf(buf, AV_TS_MAX_STRING_SIZE, "NOPTS");
+    else                      snprintf(buf, AV_TS_MAX_STRING_SIZE, "%" PRId64, ts);
+    return buf;
+}
+#define av_ts2str(ts) av_ts2string(ts).c_str()
+#endif  // av_ts2str
+
+#ifdef av_ts2timestr
+#undef av_ts2timestr
+#include <string>
+av_always_inline std::string av_ts2timestring(int64_t ts, AVRational *tb) {
+    char buf[AV_TS_MAX_STRING_SIZE];
+    if (ts == AV_NOPTS_VALUE) snprintf(buf, AV_TS_MAX_STRING_SIZE, "NOPTS");
+    else                      snprintf(buf, AV_TS_MAX_STRING_SIZE, "%.6g", av_q2d(*tb) * ts);
+    return buf;
+}
+#define av_ts2timestr(ts, tb) av_ts2timestring(ts, tb).c_str()
+#endif  // av_ts2timestr
+
 #include "consts.hpp"
 
 #define AUDIO_INBUF_SIZE 20480
