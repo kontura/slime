@@ -636,9 +636,8 @@ int main(int argc, char **argv) {
                     ffmpeg_decoder->samples_buffer+FFTW_BUFFER_BYTES,
                     ffmpeg_decoder->samples_buffer_count);
 
-            printf("samples_buffer_count: %li\n", ffmpeg_decoder->samples_buffer_count);
             if (ffmpeg_decoder->samples_buffer_count <= 0) {
-                glfwSetWindowShouldClose(window, 1);
+                glfwSetWindowShouldClose(window, GL_TRUE);
             }
         }
 

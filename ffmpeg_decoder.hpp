@@ -33,7 +33,7 @@ typedef struct ffmpeg_decoder {
     FILE *infile;
     size_t data_size;
     uint8_t *samples_buffer;
-    size_t samples_buffer_count;
+    int samples_buffer_count;
 } Decoder;
 
 // a wrapper around a single output AVStream
