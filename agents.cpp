@@ -615,7 +615,7 @@ int main(int argc, char **argv) {
             SwsContext * ctx = sws_getContext(WIDTH, HEIGHT, AV_PIX_FMT_RGB24,
                                               ffmpeg_encoder->video_st.enc->width,
                                               ffmpeg_encoder->video_st.enc->height,
-                                              AV_PIX_FMT_YUV420P, NULL, 0, 0, 0);
+                                              AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
             uint8_t * inData[1] = { pic }; // RGB24 have one plane
             int inLinesize[1] = { 3*WIDTH }; // RGB stride
             sws_scale(ctx, inData, inLinesize, 0, HEIGHT,
