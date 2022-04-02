@@ -17,6 +17,12 @@ extern "C" {
     #include <libswresample/swresample.h>
 }
 
+#include "consts.hpp"
+#include "ffmpeg_decoder.hpp"
+
+#define AUDIO_INBUF_SIZE 20480
+#define AUDIO_REFILL_THRESH 4096
+
 #ifdef av_err2str
 #undef av_err2str
 #include <string>
@@ -51,25 +57,6 @@ av_always_inline std::string av_ts2timestring(int64_t ts, AVRational *tb) {
 #define av_ts2timestr(ts, tb) av_ts2timestring(ts, tb).c_str()
 #endif  // av_ts2timestr
 
-#include "consts.hpp"
-
-#define AUDIO_INBUF_SIZE 20480
-#define AUDIO_REFILL_THRESH 4096
-
-typedef struct ffmpeg_decoder {
-    const AVCodec *codec;
-    AVCodecContext *context;
-    AVCodecParserContext *parser;
-    AVPacket *packet;
-    AVFrame *decoded_frame;
-    uint8_t *inbuf;
-    uint8_t *data;
-    FILE *infile;
-    size_t data_size;
-    uint8_t *samples_buffer;
-    int samples_buffer_count;
-} Decoder;
-
 // a wrapper around a single output AVStream
 typedef struct OutputStream {
     AVStream *st;
@@ -97,14 +84,8 @@ typedef struct ffmpeg_encoder {
     const AVCodec *audio_codec;
 } Encoder;
 
-Decoder *decoder_new(const char *infile);
 Encoder *encoder_new(const char *filename);
-
-void decoder_free(Decoder *decoder);
 void encoder_free(Encoder *encoder);
 
-void decode(Decoder *decoder);
-
-size_t load_audio_samples(Decoder *ffmpeg_decoder);
 int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c, AVStream *st, AVFrame *frame, AVPacket *pkt);
 int write_audio_frame(Decoder *decoder, AVFormatContext *oc, OutputStream *ost);

@@ -19,8 +19,8 @@
 #include <sys/stat.h>
 
 #include "cava.hpp"
-#include "capture.hpp"
 #include "ffmpeg_decoder.hpp"
+#include "ffmpeg_encoder.hpp"
 #include "consts.hpp"
 
 #include <fftw3.h>
@@ -325,8 +325,8 @@ int main(int argc, char **argv) {
     GLuint shader_program = generateRenderProgram();
 
     // create program
-    GLuint acceleration_program = generateComputeProgram("../compute_shader.glsl");
-    GLuint evaporate_program = generateComputeProgram("../evaporate_shader.glsl");
+    GLuint acceleration_program = generateComputeProgram("../src/compute_shader.glsl");
+    GLuint evaporate_program = generateComputeProgram("../src//evaporate_shader.glsl");
 
     // CREATE INIT DATA
 
@@ -514,23 +514,21 @@ int main(int argc, char **argv) {
         } else {
             double max_low = 0;
             double max_high = 0;
-            for (int i=0;i<512;i++) {
+            for (int i=0;i<1024;i++) {
                 if (max_low < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
                     max_low = hypot(out_complex_l[i][0], out_complex_l[i][1]);
                 }
                 //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
             }
-            for (int i=512;i<(FFTW_BUFFER_SIZE/2+1);i++) {
+            for (int i=1024;i<(FFTW_BUFFER_SIZE/2+1);i++) {
                 if (max_high < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
                     max_high = hypot(out_complex_l[i][0], out_complex_l[i][1]);
                 }
                 //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
             }
-            float_max = (float)max_low / (float)51200000* 5;
-            float_max_type2 = (float)max_high / (float)512000* 4;
+            float_max = (float)max_low / (float)51200000* 7;
+            float_max_type2 = (float)max_high / (float)512000* 7;
         }
-
-        printf("maxes are: %f and %f\n", float_max, float_max_type2);
 
         glfwPollEvents();
 
