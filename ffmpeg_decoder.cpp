@@ -128,7 +128,7 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
     case AVMEDIA_TYPE_VIDEO:
         c->codec_id = codec_id;
 
-        c->bit_rate = 8000000;
+        c->bit_rate = 80000000;
         /* Resolution must be a multiple of two. */
         c->width    = WIDTH;
         c->height   = HEIGHT;
