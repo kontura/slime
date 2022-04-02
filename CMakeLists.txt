@@ -26,7 +26,7 @@ include_directories(${LIBSWSCALE_INCLUDE_DIRS})
 include_directories(${LIBSWRESAMPLE_INCLUDE_DIRS})
 include_directories(${FFTW3_INCLUDE_DIRS})
 
-ADD_LIBRARY(SlimeModule cava.cpp ffmpeg_decoder.cpp capture.cpp )
+ADD_LIBRARY(SlimeModule cava.cpp ffmpeg_decoder.cpp)
 target_link_libraries(SlimeModule ${LIBAVCODEC_LDFLAGS})
 target_link_libraries(SlimeModule ${LIBAVUTIL_LDFLAGS})
 target_link_libraries(SlimeModule ${LIBRARIES})
