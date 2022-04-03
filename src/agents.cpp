@@ -18,7 +18,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "cava.hpp"
+#include "input_pulse.hpp"
 #include "ffmpeg_decoder.hpp"
 #include "ffmpeg_encoder.hpp"
 #include "consts.hpp"
@@ -33,7 +33,6 @@
 #define SENSOR_ANGLE_SPACING 1
 #define SENSOR_OFFSET_DST 5
 #define SENSOR_SIZE 2
-#define CAVA_BARS 30
 
 std::string read_file(std::string path) {
 
@@ -274,25 +273,15 @@ static float fps(double *nbFrames, double *lastTime) {
     return (*nbFrames)/delta;
 }
 
-int sensitivity_input = 0;
-int sensitivity = 20;
-
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     (void)scancode;
     (void)mods;
     if ((key == GLFW_KEY_ESCAPE || key == GLFW_KEY_Q) && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
-
-    if (key == GLFW_KEY_J && action == GLFW_PRESS)
-        sensitivity_input--;
-    if (key == GLFW_KEY_K && action == GLFW_PRESS)
-        sensitivity_input++;
-
 }
 
 void window_close_callback(GLFWwindow* window) {
     (void)window;
-    stopCava();
 }
 
 int main(int argc, char **argv) {
@@ -303,9 +292,6 @@ int main(int argc, char **argv) {
     }
 
     int tex_order = 1;
-
-    rewriteConfig(sensitivity, NULL);
-    runCava();
 
     GLFWwindow *window = initializeOpenGl();
 
@@ -399,24 +385,6 @@ int main(int argc, char **argv) {
     double nbFrames = 0;
     double lastTime = 0;
 
-    const char *input_file = NULL;
-    //wait until pipe is ready (waiting for cava)
-    sleep(1);
-    input_file = "./cava_fifo";
-
-    int fd = open(input_file, O_RDONLY);
-    printf("opening for reading: %s\n", input_file);
-
-    if (fd < 0) {
-        std::cerr << "failed to open pipe cava_fifo" << std::endl;
-        glfwTerminate();
-        exit(11);
-    }
-
-    if (cmdline_file_input_path == NULL) {
-        fcntl(fd, F_SETFL, O_NONBLOCK);
-    }
-
     glfwSetKeyCallback(window, key_callback);
     glfwSetWindowCloseCallback(window, window_close_callback);
 
@@ -427,6 +395,15 @@ int main(int argc, char **argv) {
     double *in_raw_fftw_r = NULL;
     fftw_plan fftw_plan_l, fftw_plan_r;
     fftw_complex *out_complex_l, *out_complex_r;
+    PulseAudioContext pac = {0};
+    in_raw_fftw_l = fftw_alloc_real(FFTW_BUFFER_SIZE);
+    in_raw_fftw_r = fftw_alloc_real(FFTW_BUFFER_SIZE);
+    out_complex_l = fftw_alloc_complex(FFTW_BUFFER_SIZE/2 + 1);
+    out_complex_r = fftw_alloc_complex(FFTW_BUFFER_SIZE/2 + 1);
+    memset(out_complex_l, 0, (FFTW_BUFFER_SIZE/2 + 1) * sizeof(fftw_complex));
+    memset(out_complex_r, 0, (FFTW_BUFFER_SIZE/2 + 1) * sizeof(fftw_complex));
+    fftw_plan_l = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_l, out_complex_l, FFTW_MEASURE);
+    fftw_plan_r = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_r, out_complex_r, FFTW_MEASURE);
     if (cmdline_file_input_path != NULL) {
         ffmpeg_decoder = decoder_new(cmdline_file_input_path);
 
@@ -439,96 +416,48 @@ int main(int argc, char **argv) {
 
         ffmpeg_encoder = encoder_new(dest_name);
         free(dest_name);
-        in_raw_fftw_l = fftw_alloc_real(FFTW_BUFFER_SIZE);
-        in_raw_fftw_r = fftw_alloc_real(FFTW_BUFFER_SIZE);
-        out_complex_l = fftw_alloc_complex(FFTW_BUFFER_SIZE/2 + 1);
-        out_complex_r = fftw_alloc_complex(FFTW_BUFFER_SIZE/2 + 1);
-        memset(out_complex_l, 0, (FFTW_BUFFER_SIZE/2 + 1) * sizeof(fftw_complex));
-        memset(out_complex_r, 0, (FFTW_BUFFER_SIZE/2 + 1) * sizeof(fftw_complex));
-        fftw_plan_l = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_l, out_complex_l, FFTW_MEASURE);
-        fftw_plan_r = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_r, out_complex_r, FFTW_MEASURE);
+    } else {
+        initialize_pulse((void *) &pac);
     }
 
-
-    uint8_t cava_input[CAVA_BARS];
-    uint8_t cava_input_read[CAVA_BARS];
     unsigned char *pic = (unsigned char*) malloc(WIDTH*HEIGHT*3);
     while(!glfwWindowShouldClose(window)) {
         //glBeginQuery(GL_TIME_ELAPSED, query);
-        int vals_read = CAVA_BARS;
         if (cmdline_file_input_path) {
             if (ffmpeg_decoder->samples_buffer_count <= FFTW_BUFFER_BYTES) {
                 load_audio_samples(ffmpeg_decoder);
             }
             int16_t *input = (int16_t*) ffmpeg_decoder->samples_buffer;
-            for (int i = 0; i<FFTW_SAMPLES; i+=2) {
+            for (int i = 0; i<FFTW_SAMPLES*2; i+=2) {
                 in_raw_fftw_l[i/2] = input[i];
                 //TODO(amatej): maybe do both left and right .. but for now.. good enough
             }
-            fftw_execute(fftw_plan_l);
         } else {
-            // real time mode -> if we are not fast enough we have to skip cava outputs
-            while (vals_read == CAVA_BARS) {
-                vals_read = read(fd, cava_input_read, CAVA_BARS);
-                if (vals_read == CAVA_BARS) {
-                    memcpy(cava_input, cava_input_read, CAVA_BARS);
-                }
+            input_pulse(&pac);
+            for (int i = 0; i<FFTW_SAMPLES*2; i+=2) {
+                in_raw_fftw_l[i/2] = pac.buf[i];
+                //TODO(amatej): maybe do both left and right .. but for now.. good enough
             }
         }
-
-        if (sensitivity_input > 0) {
-            sensitivity += 5;
-            sensitivity_input--;
-            rewriteConfig(sensitivity, NULL);
-            printf("setting sensitivity: %i\n", sensitivity);
-            reloadConfig();
-        }
-        if (sensitivity_input < 0) {
-            sensitivity -= 5;
-            sensitivity_input++;
-            rewriteConfig(sensitivity, NULL);
-            printf("setting sensitivity: %i\n", sensitivity);
-            reloadConfig();
-        }
+        fftw_execute(fftw_plan_l);
 
         float float_max, float_max_type2;
-
-        if (!cmdline_file_input_path) {
-            uint8_t max_low = 0;
-            uint8_t max_high = 0;
-            for (int i=0;i<8;i++) {
-                if (max_low < cava_input[i]) {
-                    max_low = cava_input[i];
-                }
-                printf("%" PRIi8 " ", cava_input[i]);
+        double max_low = 0;
+        double max_high = 0;
+        for (int i=0;i<1024;i++) {
+            if (max_low < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
+                max_low = hypot(out_complex_l[i][0], out_complex_l[i][1]);
             }
-            for (int i=8;i<CAVA_BARS;i++) {
-                if (max_high < cava_input[i]) {
-                    max_high = cava_input[i];
-                }
-                printf("%" PRIi8 " ", cava_input[i]);
-            }
-            printf("\n");
-            float_max = (float)max_low / (float)5120* 3;
-            float_max_type2 = (float)max_high / (float)5120* 6;
-        } else {
-            double max_low = 0;
-            double max_high = 0;
-            for (int i=0;i<1024;i++) {
-                if (max_low < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
-                    max_low = hypot(out_complex_l[i][0], out_complex_l[i][1]);
-                }
-                //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
-            }
-            for (int i=1024;i<(FFTW_BUFFER_SIZE/2+1);i++) {
-                if (max_high < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
-                    max_high = hypot(out_complex_l[i][0], out_complex_l[i][1]);
-                }
-                //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
-            }
-            float_max = (float)max_low / (float)51200000* 7;
-            float_max_type2 = (float)max_high / (float)512000* 7;
+            //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
         }
+        for (int i=1024;i<(FFTW_BUFFER_SIZE/2+1);i++) {
+            if (max_high < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
+                max_high = hypot(out_complex_l[i][0], out_complex_l[i][1]);
+            }
+            //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
+        }
+        float_max = (float)max_low / (float)51200000* 7;
+        float_max_type2 = (float)max_high / (float)51200000* 7;
 
         glfwPollEvents();
 
@@ -665,15 +594,18 @@ int main(int argc, char **argv) {
         decoder_free(ffmpeg_decoder);
         encoder_free(ffmpeg_encoder);
 
-        fftw_free(in_raw_fftw_l);
-        fftw_free(in_raw_fftw_r);
-
-        fftw_destroy_plan(fftw_plan_l);
-        fftw_destroy_plan(fftw_plan_r);
-
-        fftw_free(out_complex_l);
-        fftw_free(out_complex_r);
+    } else {
+        pa_simple_free(pac.s);
+        free(pac.source);
     }
+    fftw_free(in_raw_fftw_l);
+    fftw_free(in_raw_fftw_r);
+
+    fftw_destroy_plan(fftw_plan_l);
+    fftw_destroy_plan(fftw_plan_r);
+
+    fftw_free(out_complex_l);
+    fftw_free(out_complex_r);
 
     // delete the created objects
     glDeleteTextures(1, &texture0);
