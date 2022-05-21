@@ -63,7 +63,7 @@ float sense(Agent agent, float sensorAngleOffset, float sensorOffsetDst, int sen
 void main() {
     //ivec2 storePos = ivec2(gl_GlobalInvocationID.xy);
 
-    int N = int(gl_NumWorkGroups.x*gl_WorkGroupSize.x);
+    //int N = int(gl_NumWorkGroups.x*gl_WorkGroupSize.x);
     //int index = int(gl_GlobalInvocationID);
     int index = int(gl_GlobalInvocationID.x);
 
