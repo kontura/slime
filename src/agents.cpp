@@ -261,18 +261,6 @@ struct Agent {
     float type;
 };
 
-static float fps(double *nbFrames, double *lastTime) {
-    // Measure speed
-    double currentTime = glfwGetTime();
-    double delta = currentTime - *lastTime;
-    (*nbFrames)++;
-    if ( delta >= 1.0 ){ // If last cout was more than 1 sec ago
-        *nbFrames = 0;
-        *lastTime += 1.0;
-    }
-    return (*nbFrames)/delta;
-}
-
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     (void)scancode;
     (void)mods;
@@ -349,9 +337,6 @@ int main(int argc, char **argv) {
     const GLuint ssbos[] = {agents_vbo};
     glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, ssbos);
 
-    // physical parameters
-    float dt = 1.0f/60.0f;
-
     // setup uniforms
     glUseProgram(acceleration_program);
     glUniform1i(glGetUniformLocation(acceleration_program, "width"), WIDTH);
@@ -381,9 +366,6 @@ int main(int argc, char **argv) {
 
     //GLuint query;
     //glGenQueries(1, &query);
-
-    double nbFrames = 0;
-    double lastTime = 0;
 
     glfwSetKeyCallback(window, key_callback);
     glfwSetWindowCloseCallback(window, window_close_callback);
@@ -421,7 +403,13 @@ int main(int argc, char **argv) {
     }
 
     unsigned char *pic = (unsigned char*) malloc(WIDTH*HEIGHT*3);
+
+    float dt = 0;
+    double last_time = 0;
+    double current_time = 0;
     while(!glfwWindowShouldClose(window)) {
+        current_time = glfwGetTime();
+        dt = current_time - last_time;
         //glBeginQuery(GL_TIME_ELAPSED, query);
         if (cmdline_file_input_path) {
             if (ffmpeg_decoder->samples_buffer_count <= FFTW_BUFFER_BYTES) {
@@ -482,7 +470,6 @@ int main(int argc, char **argv) {
         glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), 0.6f - float_max*TURN_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeedType2"), 0.3 + float_max_type2*MOVE_SPEED);
         glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeedType2"), 0.6f - float_max_type2*TURN_SPEED);
-        //TODO(amatej): check if my orig impl had dt?
         glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
         glDispatchCompute(WIDTH/8, HEIGHT/8, 1);
 
@@ -577,9 +564,11 @@ int main(int argc, char **argv) {
         //    glGetQueryObjectui64v(query, GL_QUERY_RESULT, &result);
         //    std::cout << result*1.e-6 << " ms/frame" << std::endl;
         //}
-        float fps_v = fps(&nbFrames, &lastTime);
-        //printf("fps: %f\n", fps_v);
-        float dt = 1.0f/fps_v;
+
+        //printf("dt: %f\n", dt);
+        //float fps = 1.0f/dt;
+        //printf("fps: %f\n", fps);
+        last_time = current_time;
     }
 
     free(pic);
