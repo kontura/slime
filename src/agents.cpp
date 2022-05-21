@@ -8,9 +8,7 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
-#include <cmath>
 #include <string.h>
-#include <fstream>
 #include <fcntl.h>
 
 
@@ -21,65 +19,11 @@
 #include "input_pulse.hpp"
 #include "ffmpeg_decoder.hpp"
 #include "ffmpeg_encoder.hpp"
+#include "slime.hpp"
 #include "consts.hpp"
+#include "util.hpp"
 
 #include <fftw3.h>
-
-#define EVAPORATE_SPEED 0.20
-#define DIFFUSE_SPEED 33.2
-#define MOVE_SPEED 20.0
-#define TURN_SPEED 5.0
-
-#define SENSOR_ANGLE_SPACING 1
-#define SENSOR_OFFSET_DST 5
-#define SENSOR_SIZE 2
-
-std::string read_file(std::string path) {
-
-  std::ifstream ifs(path);
-  std::string content( (std::istreambuf_iterator<char>(ifs) ),
-                       (std::istreambuf_iterator<char>()    ) );
-
-  return content;
-}
-
-// helper to check and display for shader compiler errors
-bool check_shader_compile_status(GLuint obj) {
-    GLint status;
-    glGetShaderiv(obj, GL_COMPILE_STATUS, &status);
-    if(status == GL_FALSE) {
-        GLint length;
-        glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &length);
-        std::vector<char> log(length);
-        glGetShaderInfoLog(obj, length, &length, &log[0]);
-        std::cerr << &log[0];
-        return false;
-    }
-    return true;
-}
-
-// helper to check and display for shader linker error
-bool check_program_link_status(GLuint obj) {
-    GLint status;
-    glGetProgramiv(obj, GL_LINK_STATUS, &status);
-    if(status == GL_FALSE) {
-        GLint length;
-        glGetProgramiv(obj, GL_INFO_LOG_LENGTH, &length);
-        std::vector<char> log(length);
-        glGetProgramInfoLog(obj, length, &length, &log[0]);
-        std::cerr << &log[0];
-        return false;
-    }
-    return true;
-}
-
-void checkOpenGLErrors(const char *location) {
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR) {
-        fprintf(stderr, "OpenGL error from: %s: %s (%d)\n", location, gluErrorString(err), err);
-        exit(-1);
-    }
-}
 
 GLFWwindow *initializeOpenGl() {
     if(glfwInit() == GL_FALSE) {
@@ -228,39 +172,6 @@ GLuint generateTexture(int texture_slot) {
     return texture_handle;
 }
 
-GLuint generateComputeProgram(const char* path) {
-    GLuint program = glCreateProgram();
-    GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
-
-    std::string shader_source = read_file(path);
-    // create and compiler vertex shader
-    const char *source = shader_source.c_str();
-    int length = shader_source.size();
-    glShaderSource(compute_shader, 1, &source, &length);
-    glCompileShader(compute_shader);
-    if(!check_shader_compile_status(compute_shader)) {
-        return 0;
-    }
-
-    // attach shaders
-    glAttachShader(program, compute_shader);
-
-    // link the program and check for errors
-    glLinkProgram(program);
-    check_program_link_status(program);
-
-    glDeleteShader(compute_shader);
-    checkOpenGLErrors("generateComputeProgram");
-    return program;
-}
-
-struct Agent {
-    float x;
-    float y;
-    float angle;
-    float type;
-};
-
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     (void)scancode;
     (void)mods;
@@ -295,65 +206,12 @@ int main(int argc, char **argv) {
     GLuint texture3 = generateTexture(texture_slot3);
     GLuint texture4 = generateTexture(texture_slot4);
     GLuint texture5 = generateTexture(texture_slot5);
+
     // program and shader handles
     GLuint shader_program = generateRenderProgram();
 
-    // create program
-    GLuint acceleration_program = generateComputeProgram("../src/compute_shader.glsl");
-    GLuint evaporate_program = generateComputeProgram("../src//evaporate_shader.glsl");
-
-    // CREATE INIT DATA
-
-    // randomly place agents
-    Agent *AgentsData = (Agent *) malloc(AGENTS_COUNT*4*sizeof(float));
-    //double step = (float)WIDTH/(float)AGENTS_COUNT;
-    for(int i = 0;i<AGENTS_COUNT;++i) {
-        // initial position
-        //AgentsData[i].x = (rand()%WIDTH);
-        //AgentsData[i].y = (rand()%HEIGHT);
-        //AgentsData[i].x = step*(float)i;
-        AgentsData[i].x = WIDTH/2;
-        AgentsData[i].y = HEIGHT/2;
-        AgentsData[i].angle = 0 * 3.14f * 2.0f;
-        AgentsData[i].type = 1;
-        if (i % 2 == 0) {
-            AgentsData[i].type = 100;
-        }
-        //TODO(amatej): for some reason we only see half?? (I guess) of the agents
-        //printf("angle type: %f \n", AgentsData[i].type);
-        //printf("positions data: %f x %f\n", positionData[index], positionData[index+1]);
-    }
-
-    // generate positions_vbos and vaos and general vbo, ibo
-    GLuint agents_vbo;
-
-    glGenBuffers(1, &agents_vbo);
-
-    //ORIGINAL STUFF FOR AGENTS
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, agents_vbo);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float)*4*AGENTS_COUNT, AgentsData, GL_STATIC_DRAW);
-
-    //This is likely for compute shaders
-    const GLuint ssbos[] = {agents_vbo};
-    glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, ssbos);
-
-    // setup uniforms
-    glUseProgram(acceleration_program);
-    glUniform1i(glGetUniformLocation(acceleration_program, "width"), WIDTH);
-    glUniform1i(glGetUniformLocation(acceleration_program, "height"), HEIGHT);
-    glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), MOVE_SPEED);
-    glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), TURN_SPEED);
-    glUniform1f(glGetUniformLocation(acceleration_program, "agentsCount"), AGENTS_COUNT );
-
-    glUniform1f(glGetUniformLocation(acceleration_program, "sensorAngleSpacing"), SENSOR_ANGLE_SPACING);
-    glUniform1f(glGetUniformLocation(acceleration_program, "sensorOffsetDst"), SENSOR_OFFSET_DST);
-    glUniform1i(glGetUniformLocation(acceleration_program, "sensorSize"), SENSOR_SIZE);
-
-    glUseProgram(evaporate_program);
-    glUniform1f(glGetUniformLocation(evaporate_program, "evaporate_speed"), EVAPORATE_SPEED);
-    glUniform1f(glGetUniformLocation(evaporate_program, "diffuse_speed"), DIFFUSE_SPEED);
-    glUniform1i(glGetUniformLocation(evaporate_program, "width"), WIDTH);
-    glUniform1i(glGetUniformLocation(evaporate_program, "height"), HEIGHT);
+    Slime slime;
+    initialize_slime(&slime, AGENTS_COUNT);
 
     // we are blending so no depth testing
     glDisable(GL_DEPTH_TEST);
@@ -429,78 +287,9 @@ int main(int argc, char **argv) {
         }
         fftw_execute(fftw_plan_l);
 
-        float float_max, float_max_type2;
-        double max_low = 0;
-        double max_high = 0;
-        for (int i=0;i<1024;i++) {
-            if (max_low < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
-                max_low = hypot(out_complex_l[i][0], out_complex_l[i][1]);
-            }
-            //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
-        }
-        for (int i=1024;i<(FFTW_BUFFER_SIZE/2+1);i++) {
-            if (max_high < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
-                max_high = hypot(out_complex_l[i][0], out_complex_l[i][1]);
-            }
-            //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
-        }
-        float_max = (float)max_low / (float)51200000* 7;
-        float_max_type2 = (float)max_high / (float)51200000* 7;
+        run_slime(&slime, out_complex_l, dt, texture_slot0, texture_slot1, texture_slot2, texture_slot3, texture_slot4, texture_slot5);
 
         glfwPollEvents();
-
-
-        glUseProgram(acceleration_program);
-        if (tex_order) {
-            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex"), texture_slot1);
-            glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot0);
-            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex_type1"), texture_slot2);
-            glUniform1i(glGetUniformLocation(acceleration_program, "destTex_type1"), texture_slot3);
-            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex_type2"), texture_slot4);
-            glUniform1i(glGetUniformLocation(acceleration_program, "destTex_type2"), texture_slot5);
-        } else {
-            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex"), texture_slot0);
-            glUniform1i(glGetUniformLocation(acceleration_program, "destTex"), texture_slot1);
-            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex_type1"), texture_slot3);
-            glUniform1i(glGetUniformLocation(acceleration_program, "destTex_type1"), texture_slot2);
-            glUniform1i(glGetUniformLocation(acceleration_program, "srcTex_type2"), texture_slot5);
-            glUniform1i(glGetUniformLocation(acceleration_program, "destTex_type2"), texture_slot4);
-        }
-        glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeed"), 0.3f + float_max*MOVE_SPEED);
-        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeed"), 0.6f - float_max*TURN_SPEED);
-        glUniform1f(glGetUniformLocation(acceleration_program, "moveSpeedType2"), 0.3 + float_max_type2*MOVE_SPEED);
-        glUniform1f(glGetUniformLocation(acceleration_program, "turnSpeedType2"), 0.6f - float_max_type2*TURN_SPEED);
-        glUniform1f(glGetUniformLocation(acceleration_program, "dt"), dt);
-        glDispatchCompute(WIDTH/8, HEIGHT/8, 1);
-
-        //TODO(amatej): this might be possible to optimatize into 1 texture and using different
-        //colorls for diffrent agent types
-        glUseProgram(evaporate_program);
-        if (tex_order) {
-            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot0);
-            glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot1);
-            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex_type1"), texture_slot2);
-            glUniform1i(glGetUniformLocation(evaporate_program, "destTex_type1"), texture_slot3);
-            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex_type2"), texture_slot4);
-            glUniform1i(glGetUniformLocation(evaporate_program, "destTex_type2"), texture_slot5);
-        } else {
-            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex"), texture_slot1);
-            glUniform1i(glGetUniformLocation(evaporate_program, "destTex"), texture_slot0);
-            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex_type1"), texture_slot3);
-            glUniform1i(glGetUniformLocation(evaporate_program, "destTex_type1"), texture_slot2);
-            glUniform1i(glGetUniformLocation(evaporate_program, "srcTex_type2"), texture_slot5);
-            glUniform1i(glGetUniformLocation(evaporate_program, "destTex_type2"), texture_slot4);
-        }
-        glUniform1f(glGetUniformLocation(evaporate_program, "dt"), dt);
-        // We use 40 here because it is a common divider of 1080 and 1920 -> eatch pixel is taken care of in our texture
-        // When setting these don't forget about the local_size in the shader it self
-        glDispatchCompute(WIDTH/20, HEIGHT/20, 1);
-
-        if (tex_order) {
-            tex_order = 0;
-        } else {
-            tex_order = 1;
-        }
 
         // clear first
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -605,15 +394,11 @@ int main(int argc, char **argv) {
     glDeleteTextures(1, &texture5);
 
     //glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &agents_vbo);
-
-    glDeleteProgram(acceleration_program);
-    glDeleteProgram(evaporate_program);
 
     glfwDestroyWindow(window);
     glfwTerminate();
 
-    free(AgentsData);
+    finalize_slime(&slime);
 
     return 0;
 }
