@@ -71,8 +71,6 @@ void initialize_slime(Slime * slime, int count) {
 
 void run_slime(Slime * slime, fftw_complex * out_complex_l, float dt,
                int tx0, int tx1, int tx2, int tx3, int tx4, int tx5) {
-    glUseProgram(slime->acceleration_program);
-
     float float_max, float_max_type2;
     double max_low = 0;
     double max_high = 0;
@@ -91,6 +89,7 @@ void run_slime(Slime * slime, fftw_complex * out_complex_l, float dt,
     float_max = (float)max_low / (float)51200000* 7;
     float_max_type2 = (float)max_high / (float)51200000* 7;
 
+    glUseProgram(slime->acceleration_program);
     glUniform1f(glGetUniformLocation(slime->acceleration_program, "moveSpeed"), 0.3f + float_max*MOVE_SPEED);
     glUniform1f(glGetUniformLocation(slime->acceleration_program, "turnSpeed"), 0.6f - float_max*TURN_SPEED);
     glUniform1f(glGetUniformLocation(slime->acceleration_program, "moveSpeedType2"), 0.3 + float_max_type2*MOVE_SPEED);
