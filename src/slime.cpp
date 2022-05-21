@@ -76,13 +76,13 @@ void run_slime(Slime * slime, fftw_complex * out_complex_l, float dt,
     float float_max, float_max_type2;
     double max_low = 0;
     double max_high = 0;
-    for (int i=0;i<1024;i++) {
+    for (int i=0;i<512;i++) {
         if (max_low < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
             max_low = hypot(out_complex_l[i][0], out_complex_l[i][1]);
         }
         //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
     }
-    for (int i=1024;i<(FFTW_BUFFER_SIZE/2+1);i++) {
+    for (int i=512;i<(FFTW_SAMPLES+1);i++) {
         if (max_high < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
             max_high = hypot(out_complex_l[i][0], out_complex_l[i][1]);
         }
