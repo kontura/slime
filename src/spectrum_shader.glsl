@@ -20,8 +20,9 @@ float pserandom(vec2 uv) {
 
 void main() {
     int index = int(gl_GlobalInvocationID.x);
-    float height = spectrum_data[index];
+    float height = spectrum_data[index] + 30.0;
 
-    vec4 color = vec4(1, 0, 0, 1);
-    imageStore(destTex, ivec2(index, height), color);
+    float m = mod(index, 100) * 0.1;
+    vec4 color = vec4(1, m, 0, 1);
+    imageStore(destTex, ivec2(index + 100.0, height), color);
 }
