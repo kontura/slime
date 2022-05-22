@@ -6,6 +6,16 @@
 #include <string>
 #include <cmath>
 
+#define MOVE_SPEED 20.0
+#define TURN_SPEED 5.0
+
+#define SENSOR_ANGLE_SPACING 1
+#define SENSOR_OFFSET_DST 5
+#define SENSOR_SIZE 2
+#define EVAPORATE_SPEED 0.20
+#define DIFFUSE_SPEED 33.2
+
+
 Agent * create_agents(int count) {
     Agent *AgentsData = (Agent *) malloc(count*4*sizeof(float));
     // randomly place agents
