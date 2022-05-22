@@ -8,9 +8,6 @@
 
 #include <fftw3.h>
 
-#define EVAPORATE_SPEED 10.00
-#define DIFFUSE_SPEED 00.2
-
 struct Spectrum {
     float *spectrum_data;
     GLuint spectrum_program;

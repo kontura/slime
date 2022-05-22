@@ -6,6 +6,9 @@
 #include <string>
 #include <cmath>
 
+#define EVAPORATE_SPEED 10.00
+#define DIFFUSE_SPEED 00.2
+
 void initialize_spectrum(Spectrum * spectrum, int count) {
     spectrum->spectrum_data = (float *) malloc(count*sizeof(float));
 
