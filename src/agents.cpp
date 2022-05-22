@@ -183,11 +183,22 @@ void window_close_callback(GLFWwindow* window) {
     (void)window;
 }
 
+enum graphic_mode{SLIME_MODE, SPECTRUM_MODE};
+
 int main(int argc, char **argv) {
+    graphic_mode mode = SLIME_MODE;
     char *cmdline_file_input_path = NULL;
-    if (argc == 2) {
-        // we have a file input
-        cmdline_file_input_path = argv[1];
+    int opt;
+
+    while ((opt = getopt(argc, argv, "f:ls")) != -1) {
+        switch (opt) {
+            case 'f': cmdline_file_input_path = optarg; break;
+            case 'l': mode = SLIME_MODE; break;
+            case 's': mode = SPECTRUM_MODE; break;
+            default:
+                      fprintf(stderr, "Usage: %s [-f FILE] [-l] [-s]\n", argv[0]);
+                      exit(EXIT_FAILURE);
+        }
     }
 
     int tex_order = 1;
