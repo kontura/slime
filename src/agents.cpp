@@ -273,12 +273,11 @@ int main(int argc, char **argv) {
 
     unsigned char *pic = (unsigned char*) malloc(WIDTH*HEIGHT*3);
 
-    float dt = 0;
+    float dt = OFFLINE_DT;
     double last_time = 0;
     double current_time = 0;
     while(!glfwWindowShouldClose(window)) {
         current_time = glfwGetTime();
-        dt = current_time - last_time;
         //glBeginQuery(GL_TIME_ELAPSED, query);
         if (cmdline_file_input_path) {
             if (ffmpeg_decoder->samples_buffer_count <= FFTW_BUFFER_BYTES) {
@@ -290,6 +289,7 @@ int main(int argc, char **argv) {
                 //TODO(amatej): maybe do both left and right .. but for now.. good enough
             }
         } else {
+            dt = current_time - last_time;
             input_pulse(&pac);
             for (int i = 0; i<FFTW_SAMPLES*2; i+=2) {
                 in_raw_fftw_l[i/2] = pac.buf[i];
@@ -365,9 +365,6 @@ int main(int argc, char **argv) {
         //    std::cout << result*1.e-6 << " ms/frame" << std::endl;
         //}
 
-        //printf("dt: %f\n", dt);
-        //float fps = 1.0f/dt;
-        //printf("fps: %f\n", fps);
         last_time = current_time;
     }
 
