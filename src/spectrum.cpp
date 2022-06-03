@@ -48,9 +48,6 @@ void finalize_spectrum(Spectrum * spectrum) {
 
 void run_spectrum(Spectrum * spectrum, fftw_complex * out_complex_l, float dt,
                   int tx0, int tx1, int tx2, int tx3, int tx4, int tx5) {
-    for (int i=0;i<(FFTW_SAMPLES+1);i++) {
-        spectrum->spectrum_data[i] = hypot(out_complex_l[i][0], out_complex_l[i][1]) / 500;
-    }
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, spectrum->spectrum_vbo);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float)*1024, spectrum->spectrum_data, GL_STATIC_DRAW);
 

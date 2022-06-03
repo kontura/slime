@@ -25,8 +25,8 @@ Agent * create_agents(int count) {
         //AgentsData[i].x = (rand()%WIDTH);
         //AgentsData[i].y = (rand()%HEIGHT);
         //AgentsData[i].x = step*(float)i;
-        AgentsData[i].x = WIDTH/2;
-        AgentsData[i].y = HEIGHT/2;
+        AgentsData[i].x = (float)WIDTH/2;
+        AgentsData[i].y = (float)HEIGHT/2;
         AgentsData[i].angle = 0 * 3.14f * 2.0f;
         AgentsData[i].type = 1;
         if (i > count/2) {
@@ -79,25 +79,8 @@ void initialize_slime(Slime * slime, int count) {
     return;
 }
 
-void run_slime(Slime * slime, fftw_complex * out_complex_l, float dt,
+void run_slime(Slime * slime, float float_max, float float_max_type2, float dt,
                int tx0, int tx1, int tx2, int tx3, int tx4, int tx5) {
-    float float_max, float_max_type2;
-    double max_low = 0;
-    double max_high = 0;
-    for (int i=0;i<212;i++) {
-        if (max_low < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
-            max_low = hypot(out_complex_l[i][0], out_complex_l[i][1]);
-        }
-        //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
-    }
-    for (int i=212;i<(FFTW_SAMPLES+1);i++) {
-        if (max_high < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
-            max_high = hypot(out_complex_l[i][0], out_complex_l[i][1]);
-        }
-        //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
-    }
-    float_max = (float)max_low / (float)51200000* 7;
-    float_max_type2 = (float)max_high / (float)5120000* 7;
 
     glUseProgram(slime->acceleration_program);
     glUniform1f(glGetUniformLocation(slime->acceleration_program, "moveSpeed"), 0.3f + float_max*MOVE_SPEED);

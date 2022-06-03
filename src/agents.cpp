@@ -22,6 +22,7 @@
 #include "slime.hpp"
 #include "consts.hpp"
 #include "util.hpp"
+#include "spectrum.hpp"
 
 #include <fftw3.h>
 
@@ -137,7 +138,7 @@ GLuint generateRenderProgram() {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5*sizeof(GLfloat), (char*)0 + 0*sizeof(GLfloat));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(GLfloat), (char*)0 + 3*sizeof(GLfloat));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(GLfloat), (char*)(0 + 3*sizeof(GLfloat)));
 
     // generate and bind the index buffer object
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
@@ -188,19 +189,24 @@ enum graphic_mode{SLIME_MODE, SPECTRUM_MODE};
 int main(int argc, char **argv) {
     graphic_mode mode = SLIME_MODE;
     char *cmdline_file_input_path = NULL;
+    char *cmdline_file_a1_input_path = NULL;
+    char *cmdline_file_a2_input_path = NULL;
     int opt;
 
-    while ((opt = getopt(argc, argv, "f:ls")) != -1) {
+    while ((opt = getopt(argc, argv, "f:ls1:2:")) != -1) {
         switch (opt) {
             case 'f': cmdline_file_input_path = optarg; break;
             case 'l': mode = SLIME_MODE; break;
             case 's': mode = SPECTRUM_MODE; break;
+            case '1': cmdline_file_a1_input_path = optarg; break;
+            case '2': cmdline_file_a2_input_path = optarg; break;
             default:
-                      fprintf(stderr, "Usage: %s [-f FILE] [-l] [-s]\n", argv[0]);
+                      fprintf(stderr, "Usage: %s [-f FILE] [-l] [-s] [-1 FILE] [-2 FILE] \n", argv[0]);
                       exit(EXIT_FAILURE);
         }
     }
 
+    //TODO(amatej): tex_order should be remove, run_.. could return pointer to the texture that should be drawn
     int tex_order = 1;
 
     GLFWwindow *window = initializeOpenGl();
@@ -222,7 +228,16 @@ int main(int argc, char **argv) {
     GLuint shader_program = generateRenderProgram();
 
     Slime slime;
-    initialize_slime(&slime, AGENTS_COUNT);
+    Spectrum spectrum;
+
+    switch (mode) {
+        case SLIME_MODE:
+            initialize_slime(&slime, AGENTS_COUNT);
+            break;
+        case SPECTRUM_MODE:
+            initialize_spectrum(&spectrum, FFTW_SAMPLES);
+            break;
+    }
 
     // we are blending so no depth testing
     glDisable(GL_DEPTH_TEST);
@@ -246,7 +261,7 @@ int main(int argc, char **argv) {
     double *in_raw_fftw_r = NULL;
     fftw_plan fftw_plan_l, fftw_plan_r;
     fftw_complex *out_complex_l, *out_complex_r;
-    PulseAudioContext pac = {0};
+    PulseAudioContext pac = {0, 0, {0}};
     in_raw_fftw_l = fftw_alloc_real(FFTW_BUFFER_SIZE);
     in_raw_fftw_r = fftw_alloc_real(FFTW_BUFFER_SIZE);
     out_complex_l = fftw_alloc_complex(FFTW_BUFFER_SIZE/2 + 1);
@@ -255,6 +270,17 @@ int main(int argc, char **argv) {
     memset(out_complex_r, 0, (FFTW_BUFFER_SIZE/2 + 1) * sizeof(fftw_complex));
     fftw_plan_l = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_l, out_complex_l, FFTW_MEASURE);
     fftw_plan_r = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_r, out_complex_r, FFTW_MEASURE);
+
+    //float *in_raw_a1 = (float*)malloc(sizeof(float) * FFTW_SAMPLES);
+    Decoder *ffmpeg_decoder_a1 = NULL;
+    Decoder *ffmpeg_decoder_a2 = NULL;
+    if (cmdline_file_a1_input_path != NULL) {
+        ffmpeg_decoder_a1 = decoder_new(cmdline_file_a1_input_path);
+    }
+    if (cmdline_file_a2_input_path != NULL) {
+        ffmpeg_decoder_a2 = decoder_new(cmdline_file_a2_input_path);
+    }
+
     if (cmdline_file_input_path != NULL) {
         ffmpeg_decoder = decoder_new(cmdline_file_input_path);
 
@@ -276,18 +302,63 @@ int main(int argc, char **argv) {
     float dt = OFFLINE_DT;
     double last_time = 0;
     double current_time = 0;
+    float max_high_a1 = 0;
+    float max_high_a2 = 0;
     while(!glfwWindowShouldClose(window)) {
         current_time = glfwGetTime();
         //glBeginQuery(GL_TIME_ELAPSED, query);
+
+        if (cmdline_file_a1_input_path) {
+            max_high_a1 = 0;
+            if (ffmpeg_decoder_a1->samples_buffer_count <= FFTW_BUFFER_BYTES) {
+                load_audio_samples(ffmpeg_decoder_a1);
+            }
+            int16_t *input = (int16_t*) ffmpeg_decoder_a1->samples_buffer;
+            for (int i = 0; i<FFTW_SAMPLES*2; i+=2) {
+                in_raw_fftw_l[i/2] = input[i];
+            }
+            fftw_execute(fftw_plan_l);
+            for (int i=0;i<(FFTW_SAMPLES+1);i++) {
+                if (max_high_a1 < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
+                    max_high_a1 = hypot(out_complex_l[i][0], out_complex_l[i][1]);
+                }
+            }
+            max_high_a1 /= 5100000 * 3;
+            //printf("max_high_a1: %f\n",max_high_a1);
+        }
+
+        if (cmdline_file_a2_input_path) {
+            max_high_a2 = 0;
+            if (ffmpeg_decoder_a2->samples_buffer_count <= FFTW_BUFFER_BYTES) {
+                load_audio_samples(ffmpeg_decoder_a2);
+            }
+            int16_t *input = (int16_t*) ffmpeg_decoder_a2->samples_buffer;
+            for (int i = 0; i<FFTW_SAMPLES*2; i+=2) {
+                in_raw_fftw_l[i/2] = input[i];
+            }
+            fftw_execute(fftw_plan_l);
+            for (int i=0;i<(FFTW_SAMPLES+1);i++) {
+                if (max_high_a2 < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
+                    max_high_a2 = hypot(out_complex_l[i][0], out_complex_l[i][1]);
+                }
+                //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
+            }
+            max_high_a2 /= 5100000 * 3;
+            //printf("max_high_a2: %f\n",max_high_a2);
+        }
+
+
+
         if (cmdline_file_input_path) {
             if (ffmpeg_decoder->samples_buffer_count <= FFTW_BUFFER_BYTES) {
                 load_audio_samples(ffmpeg_decoder);
             }
-            int16_t *input = (int16_t*) ffmpeg_decoder->samples_buffer;
-            for (int i = 0; i<FFTW_SAMPLES*2; i+=2) {
-                in_raw_fftw_l[i/2] = input[i];
-                //TODO(amatej): maybe do both left and right .. but for now.. good enough
-            }
+            //int16_t *input = (int16_t*) ffmpeg_decoder->samples_buffer;
+            //for (int i = 0; i<FFTW_SAMPLES*2; i+=2) {
+            //    //note(amatej): the format of input has to be left, right, left, right...
+            //    in_raw_fftw_l[i/2] = input[i];
+            //    //TODO(amatej): maybe do both left and right .. but for now.. good enough
+            //}
         } else {
             dt = current_time - last_time;
             input_pulse(&pac);
@@ -296,9 +367,57 @@ int main(int argc, char **argv) {
                 //TODO(amatej): maybe do both left and right .. but for now.. good enough
             }
         }
-        fftw_execute(fftw_plan_l);
 
-        run_slime(&slime, out_complex_l, dt, texture_slot0, texture_slot1, texture_slot2, texture_slot3, texture_slot4, texture_slot5);
+        //fftw_execute(fftw_plan_l);
+
+
+
+        //smoot fft
+        //const int width = 4;
+        //const float weight_sum = width * 1.5f + .5f;
+        //for (int i = width; i<FFTW_SAMPLES - width; ++i) {
+        //    float sum = 0.0f;
+        //    for (int j = -width; j<=width; ++j ){
+        //        sum += (1.f - std::abs(j) / (2.f * width)) * hypot(out_complex_l[i+j][0], out_complex_l[i+j][1]);
+        //    }
+        //    out_complex_l[i][0] = sum/weight_sum;
+        //    out_complex_l[i][1] = 1;
+
+
+        //}
+
+        switch (mode) {
+            case SLIME_MODE:
+    //double max_low = 0;
+    //double max_high = 0;
+    //for (int i=0;i<212;i++) {
+    //    if (max_low < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
+    //        max_low = hypot(out_complex_l[i][0], out_complex_l[i][1]);
+    //    }
+    //    //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
+    //}
+    //for (int i=212;i<(FFTW_SAMPLES+1);i++) {
+    //    if (max_high < hypot(out_complex_l[i][0], out_complex_l[i][1])) {
+    //        max_high = hypot(out_complex_l[i][0], out_complex_l[i][1]);
+    //    }
+    //    //printf("%d", hypot(out_complex_l[i][0], out_complex_l[i][1]));
+    //}
+    //float_max = (float)max_low / (float)51200000* 7;
+    //float_max_type2 = (float)max_high / (float)5120000* 7;
+                run_slime(&slime, max_high_a1, max_high_a2, dt, texture_slot0, texture_slot1,
+                          texture_slot2, texture_slot3, texture_slot4, texture_slot5);
+                break;
+            case SPECTRUM_MODE:
+                for (int i=0;i<(FFTW_SAMPLES+1);i++) {
+                    spectrum.spectrum_data[i] = hypot(out_complex_l[i][0], out_complex_l[i][1]) / 500;
+                    //printf("%f", in_raw_a1[i]);
+                    //spectrum.spectrum_data[i] = in_raw_a1[i];
+                }
+                //printf("\n");
+                run_spectrum(&spectrum, out_complex_l, dt, texture_slot0, texture_slot1,
+                             texture_slot2, texture_slot3, texture_slot4, texture_slot5);
+                break;
+        }
 
         glfwPollEvents();
 
@@ -345,10 +464,24 @@ int main(int argc, char **argv) {
             write_audio_frame(ffmpeg_decoder, ffmpeg_encoder->output_context, &(ffmpeg_encoder->audio_st));
 
             // move audio samples
+            // TODO(amatej): this is stupid, because I totally forgot about it
             ffmpeg_decoder->samples_buffer_count -= FFTW_BUFFER_BYTES;
             memmove(ffmpeg_decoder->samples_buffer,
                     ffmpeg_decoder->samples_buffer+FFTW_BUFFER_BYTES,
                     ffmpeg_decoder->samples_buffer_count);
+
+            if (cmdline_file_a1_input_path) {
+                ffmpeg_decoder_a1->samples_buffer_count -= FFTW_BUFFER_BYTES;
+                memmove(ffmpeg_decoder_a1->samples_buffer,
+                        ffmpeg_decoder_a1->samples_buffer+FFTW_BUFFER_BYTES,
+                        ffmpeg_decoder_a1->samples_buffer_count);
+            }
+            if (cmdline_file_a2_input_path) {
+                ffmpeg_decoder_a2->samples_buffer_count -= FFTW_BUFFER_BYTES;
+                memmove(ffmpeg_decoder_a2->samples_buffer,
+                        ffmpeg_decoder_a2->samples_buffer+FFTW_BUFFER_BYTES,
+                        ffmpeg_decoder_a2->samples_buffer_count);
+            }
 
             if (ffmpeg_decoder->samples_buffer_count <= 0) {
                 glfwSetWindowShouldClose(window, GL_TRUE);
@@ -406,7 +539,14 @@ int main(int argc, char **argv) {
     glfwDestroyWindow(window);
     glfwTerminate();
 
-    finalize_slime(&slime);
+    switch (mode) {
+        case SLIME_MODE:
+            finalize_slime(&slime);
+            break;
+        case SPECTRUM_MODE:
+            finalize_spectrum(&spectrum);
+            break;
+    }
 
     return 0;
 }

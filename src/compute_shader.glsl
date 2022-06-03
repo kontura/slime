@@ -68,7 +68,7 @@ void main() {
     int index = int(gl_GlobalInvocationID.x);
 
     vec2 center = vec2(float(width)/1.618f, float(height)/1.618f);
-    vec4 color = vec4(1, 0, 0, 1);
+    vec4 color = vec4(0.19, 0.788, 0.433, 1);
     Agent agent = agents[index];
 
     float agent_move_speed = moveSpeed;
@@ -76,7 +76,7 @@ void main() {
     if (agent.type > 44.1) {
         agent_move_speed = moveSpeedType2;
         agent_turn_speed = turnSpeedType2;
-        color = vec4(0,1,1,1);
+        color = vec4(1,0.99,0.95,1);
     }
 
     vec2 direction = vec2(cos(agent.angle), sin(agent.angle));
