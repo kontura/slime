@@ -25,8 +25,8 @@ Agent * create_agents(int count) {
         //AgentsData[i].x = (rand()%WIDTH);
         //AgentsData[i].y = (rand()%HEIGHT);
         //AgentsData[i].x = step*(float)i;
-        AgentsData[i].x = WIDTH/2;
-        AgentsData[i].y = HEIGHT/2;
+        AgentsData[i].x = (float)WIDTH/2;
+        AgentsData[i].y = (float)HEIGHT/2;
         AgentsData[i].angle = 0 * 3.14f * 2.0f;
         AgentsData[i].type = 1;
         if (i > count/2) {
