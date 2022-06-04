@@ -109,17 +109,17 @@ void run_slime(Slime * slime, fftw_complex * out_complex_l, float dt,
     if (slime->tex_order) {
         glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex"), tx1);
         glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex"), tx0);
-        glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex_type1"), tx2);
-        glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex_type1"), tx3);
-        glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex_type2"), tx4);
-        glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex_type2"), tx5);
-    } else {
-        glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex"), tx0);
-        glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex"), tx1);
         glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex_type1"), tx3);
         glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex_type1"), tx2);
         glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex_type2"), tx5);
         glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex_type2"), tx4);
+    } else {
+        glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex"), tx0);
+        glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex"), tx1);
+        glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex_type1"), tx2);
+        glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex_type1"), tx3);
+        glUniform1i(glGetUniformLocation(slime->acceleration_program, "srcTex_type2"), tx4);
+        glUniform1i(glGetUniformLocation(slime->acceleration_program, "destTex_type2"), tx5);
     }
     glDispatchCompute(WIDTH/8, HEIGHT/8, 1);
 
