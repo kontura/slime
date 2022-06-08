@@ -66,9 +66,17 @@ void main() {
     //int index = int(gl_GlobalInvocationID);
     int index = int(gl_GlobalInvocationID.x);
 
-    vec2 center = vec2(float(width)/1.618f, float(height)/1.618f);
+    //vec2 center = vec2(float(width)/1.618f, float(height)/1.618f);
+    vec2 center = vec2(0,0);
     vec4 color = vec4(1, 0, 0, 1);
     Agent agent = agents[index];
+
+    float c = 2;
+    float b = -0.6013;
+    float a = 0.9;
+    float d = 0.5;
+    center.x = agent.position.x * agent.position.x - agent.position.y * agent.position.y + a*agent.position.x + b*agent.position.y;
+    center.y = 2 * agent.position.x * agent.position.y  + c*agent.position.x + d*agent.position.y;
 
     float agent_move_speed = moveSpeed;
     float agent_turn_speed = turnSpeed;
