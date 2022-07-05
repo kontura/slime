@@ -26,7 +26,7 @@ include_directories(${LIBSWSCALE_INCLUDE_DIRS})
 include_directories(${LIBSWRESAMPLE_INCLUDE_DIRS})
 include_directories(${FFTW3_INCLUDE_DIRS})
 
-ADD_LIBRARY(SlimeModule src/ffmpeg_decoder.cpp src/ffmpeg_encoder.cpp src/input_pulse.cpp src/slime.cpp src/util.cpp src/spectrum.cpp)
+ADD_LIBRARY(SlimeModule src/ffmpeg_decoder.cpp src/ffmpeg_encoder.cpp src/input_pulse.cpp src/slime.cpp src/util.cpp src/spectrum.cpp src/fluid.cpp)
 target_link_libraries(SlimeModule ${LIBAVCODEC_LDFLAGS})
 target_link_libraries(SlimeModule ${LIBAVUTIL_LDFLAGS})
 target_link_libraries(SlimeModule ${LIBRARIES})
