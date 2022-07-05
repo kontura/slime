@@ -57,10 +57,6 @@ void run_spectrum(void * mode_data, fftw_complex * out_complex_l, float dt,
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, spectrum->spectrum_vbo);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float)*1024, spectrum->spectrum_data, GL_STATIC_DRAW);
 
-    //This is likely for compute shaders
-    const GLuint ssbos[] = {spectrum->spectrum_vbo};
-    glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, ssbos);
-
     glUseProgram(spectrum->spectrum_program);
     glUniform1f(glGetUniformLocation(spectrum->spectrum_program, "dt"), dt);
 
