@@ -21,6 +21,7 @@
 #include "ffmpeg_encoder.hpp"
 #include "slime.hpp"
 #include "spectrum.hpp"
+#include "fluid.hpp"
 #include "consts.hpp"
 #include "util.hpp"
 
@@ -184,12 +185,32 @@ void window_close_callback(GLFWwindow* window) {
     (void)window;
 }
 
-enum graphic_mode{SLIME_MODE, SPECTRUM_MODE};
+enum graphic_mode{SLIME_MODE, SPECTRUM_MODE, FLUID_MODE};
 
 int main(int argc, char **argv) {
     graphic_mode mode = SLIME_MODE;
     char *cmdline_file_input_path = NULL;
     int opt;
+
+    while ((opt = getopt(argc, argv, "f:lsd")) != -1) {
+        switch (opt) {
+            case 'f':
+                cmdline_file_input_path = optarg;
+                break;
+            case 'l':
+                mode = SLIME_MODE;
+                break;
+            case 's':
+                mode = SPECTRUM_MODE;
+                break;
+            case 'd':
+                mode = FLUID_MODE;
+                break;
+            default:
+                fprintf(stderr, "Usage: %s [-f FILE] [-l] [-s]\n", argv[0]);
+                exit(EXIT_FAILURE);
+        }
+    }
 
     void (*init_proc)(void *, int);
     void (*run_proc)(void * mode_data,
@@ -204,30 +225,30 @@ int main(int argc, char **argv) {
     void (*finalize_proc)(void *);
     void * mode_data;
 
-    while ((opt = getopt(argc, argv, "f:ls")) != -1) {
-        switch (opt) {
-            case 'f':
-                cmdline_file_input_path = optarg;
-                break;
-            case 'l':
-                mode = SLIME_MODE;
-                init_proc = &initialize_slime;
-                run_proc = &run_slime;
-                finalize_proc = &finalize_slime;
-                mode_data = (void*)malloc(sizeof(Slime));
-                break;
-            case 's':
-                mode = SPECTRUM_MODE;
-                init_proc = &initialize_spectrum;
-                run_proc = &run_spectrum;
-                finalize_proc = &finalize_spectrum;
-                mode_data = (void*)malloc(sizeof(Spectrum));
-                break;
-            default:
-                fprintf(stderr, "Usage: %s [-f FILE] [-l] [-s]\n", argv[0]);
-                exit(EXIT_FAILURE);
-        }
+    switch (mode) {
+        case SPECTRUM_MODE:
+            init_proc = &initialize_spectrum;
+            run_proc = &run_spectrum;
+            finalize_proc = &finalize_spectrum;
+            mode_data = (void*)malloc(sizeof(Spectrum));
+            break;
+        case FLUID_MODE:
+            init_proc = &initialize_fluid;
+            run_proc = &run_fluid;
+            finalize_proc = &finalize_fluid;
+            mode_data = (void*)malloc(sizeof(Fluid));
+            break;
+        default:
+        case SLIME_MODE:
+            init_proc = &initialize_slime;
+            run_proc = &run_slime;
+            finalize_proc = &finalize_slime;
+            mode_data = (void*)malloc(sizeof(Slime));
+            break;
+
+
     }
+
 
     int tex_order = 1;
 
