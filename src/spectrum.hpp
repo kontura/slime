@@ -16,7 +16,7 @@ struct Spectrum {
     int tex_order;
 };
 
-void initialize_spectrum(Spectrum * spectrum, int count);
-void finalize_spectrum(Spectrum * spectrum);
-void run_spectrum(Spectrum * spectrum, fftw_complex * out_complex_l, float dt,
+void initialize_spectrum(void * mode_data, int count);
+void finalize_spectrum(void * mode_data);
+void run_spectrum(void * mode_data, fftw_complex * out_complex_l, float dt,
                int tx0, int tx1, int tx2, int tx3, int tx4, int tx5);

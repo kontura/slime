@@ -27,7 +27,7 @@ struct Slime {
 
 Agent * create_agents(int count);
 
-void initialize_slime(Slime * slime, int count);
-void finalize_slime(Slime * slime);
-void run_slime(Slime * slime, fftw_complex * out_complex_l, float dt,
+void initialize_slime(void * mode_data, int count);
+void finalize_slime(void * mode_data);
+void run_slime(void * mode_data, fftw_complex * out_complex_l, float dt,
                int tx0, int tx1, int tx2, int tx3, int tx4, int tx5);

@@ -39,7 +39,8 @@ Agent * create_agents(int count) {
     return AgentsData;
 }
 
-void initialize_slime(Slime * slime, int count) {
+void initialize_slime(void * mode_data, int count) {
+    Slime *slime = (Slime *) mode_data;
     slime->agent_data = create_agents(count);
 
     // generate positions_vbos and vaos and general vbo, ibo
@@ -79,8 +80,9 @@ void initialize_slime(Slime * slime, int count) {
     return;
 }
 
-void run_slime(Slime * slime, fftw_complex * out_complex_l, float dt,
+void run_slime(void * mode_data, fftw_complex * out_complex_l, float dt,
                int tx0, int tx1, int tx2, int tx3, int tx4, int tx5) {
+    Slime *slime = (Slime *) mode_data;
     float float_max, float_max_type2;
     double max_low = 0;
     double max_high = 0;
@@ -153,7 +155,8 @@ void run_slime(Slime * slime, fftw_complex * out_complex_l, float dt,
     }
 }
 
-void finalize_slime(Slime * slime) {
+void finalize_slime(void * mode_data) {
+    Slime *slime = (Slime *) mode_data;
     glDeleteProgram(slime->acceleration_program);
     glDeleteProgram(slime->evaporate_program);
     glDeleteBuffers(1, &(slime->agents_vbo));

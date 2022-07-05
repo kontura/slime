@@ -20,6 +20,7 @@
 #include "ffmpeg_decoder.hpp"
 #include "ffmpeg_encoder.hpp"
 #include "slime.hpp"
+#include "spectrum.hpp"
 #include "consts.hpp"
 #include "util.hpp"
 
@@ -190,14 +191,41 @@ int main(int argc, char **argv) {
     char *cmdline_file_input_path = NULL;
     int opt;
 
+    void (*init_proc)(void *, int);
+    void (*run_proc)(void * mode_data,
+                     fftw_complex * out_complex_l,
+                     float dt,
+                     int tx0,
+                     int tx1,
+                     int tx2,
+                     int tx3,
+                     int tx4,
+                     int tx5);
+    void (*finalize_proc)(void *);
+    void * mode_data;
+
     while ((opt = getopt(argc, argv, "f:ls")) != -1) {
         switch (opt) {
-            case 'f': cmdline_file_input_path = optarg; break;
-            case 'l': mode = SLIME_MODE; break;
-            case 's': mode = SPECTRUM_MODE; break;
+            case 'f':
+                cmdline_file_input_path = optarg;
+                break;
+            case 'l':
+                mode = SLIME_MODE;
+                init_proc = &initialize_slime;
+                run_proc = &run_slime;
+                finalize_proc = &finalize_slime;
+                mode_data = (void*)malloc(sizeof(Slime));
+                break;
+            case 's':
+                mode = SPECTRUM_MODE;
+                init_proc = &initialize_spectrum;
+                run_proc = &run_spectrum;
+                finalize_proc = &finalize_spectrum;
+                mode_data = (void*)malloc(sizeof(Spectrum));
+                break;
             default:
-                      fprintf(stderr, "Usage: %s [-f FILE] [-l] [-s]\n", argv[0]);
-                      exit(EXIT_FAILURE);
+                fprintf(stderr, "Usage: %s [-f FILE] [-l] [-s]\n", argv[0]);
+                exit(EXIT_FAILURE);
         }
     }
 
@@ -221,8 +249,7 @@ int main(int argc, char **argv) {
     // program and shader handles
     GLuint shader_program = generateRenderProgram();
 
-    Slime slime;
-    initialize_slime(&slime, AGENTS_COUNT);
+    init_proc(mode_data, AGENTS_COUNT);
 
     // we are blending so no depth testing
     glDisable(GL_DEPTH_TEST);
@@ -298,7 +325,7 @@ int main(int argc, char **argv) {
         }
         fftw_execute(fftw_plan_l);
 
-        run_slime(&slime, out_complex_l, dt, texture_slot0, texture_slot1, texture_slot2, texture_slot3, texture_slot4, texture_slot5);
+        run_proc(mode_data, out_complex_l, dt, texture_slot0, texture_slot1, texture_slot2, texture_slot3, texture_slot4, texture_slot5);
 
         glfwPollEvents();
 
@@ -406,7 +433,8 @@ int main(int argc, char **argv) {
     glfwDestroyWindow(window);
     glfwTerminate();
 
-    finalize_slime(&slime);
+    finalize_proc(mode_data);
+    free(mode_data);
 
     return 0;
 }

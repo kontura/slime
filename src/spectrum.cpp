@@ -9,7 +9,8 @@
 #define EVAPORATE_SPEED 10.00
 #define DIFFUSE_SPEED 00.2
 
-void initialize_spectrum(Spectrum * spectrum, int count) {
+void initialize_spectrum(void * mode_data, int count) {
+    Spectrum *spectrum = (Spectrum *) mode_data;
     spectrum->spectrum_data = (float *) malloc(count*sizeof(float));
 
     // generate positions_vbos and vaos and general vbo, ibo
@@ -39,15 +40,17 @@ void initialize_spectrum(Spectrum * spectrum, int count) {
     spectrum->tex_order = 1;
 }
 
-void finalize_spectrum(Spectrum * spectrum) {
+void finalize_spectrum(void * mode_data) {
+    Spectrum *spectrum = (Spectrum *) mode_data;
     glDeleteProgram(spectrum->spectrum_program);
     glDeleteProgram(spectrum->evaporate_program);
     glDeleteBuffers(1, &(spectrum->spectrum_vbo));
     free(spectrum->spectrum_data);
 }
 
-void run_spectrum(Spectrum * spectrum, fftw_complex * out_complex_l, float dt,
+void run_spectrum(void * mode_data, fftw_complex * out_complex_l, float dt,
                   int tx0, int tx1, int tx2, int tx3, int tx4, int tx5) {
+    Spectrum *spectrum = (Spectrum *) mode_data;
     for (int i=0;i<(FFTW_SAMPLES+1);i++) {
         spectrum->spectrum_data[i] = hypot(out_complex_l[i][0], out_complex_l[i][1]) / 500;
     }
