@@ -16,8 +16,8 @@
 #define DIFFUSE_SPEED 33.2
 
 
-Agent * create_agents(int count) {
-    Agent *AgentsData = (Agent *) malloc(count*4*sizeof(float));
+static Agent * create_agents(int count) {
+    Agent *AgentsData = (Agent *) malloc(count*sizeof(Agent));
     // randomly place agents
     //double step = (float)WIDTH/(float)AGENTS_COUNT;
     for(int i = 0;i<count;++i) {

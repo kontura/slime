@@ -25,8 +25,6 @@ struct Slime {
     int tex_order;
 };
 
-Agent * create_agents(int count);
-
 void initialize_slime(void * mode_data, int count);
 void finalize_slime(void * mode_data);
 void run_slime(void * mode_data, fftw_complex * out_complex_l, float dt,
