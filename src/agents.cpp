@@ -224,6 +224,7 @@ int main(int argc, char **argv) {
                      int tx5);
     void (*finalize_proc)(void *);
     void * mode_data;
+    int mode_data_count;
 
     switch (mode) {
         case SPECTRUM_MODE:
@@ -231,12 +232,14 @@ int main(int argc, char **argv) {
             run_proc = &run_spectrum;
             finalize_proc = &finalize_spectrum;
             mode_data = (void*)malloc(sizeof(Spectrum));
+            mode_data_count = AGENTS_COUNT;
             break;
         case FLUID_MODE:
             init_proc = &initialize_fluid;
             run_proc = &run_fluid;
             finalize_proc = &finalize_fluid;
             mode_data = (void*)malloc(sizeof(Fluid));
+            mode_data_count = CELL_COUNT;
             break;
         default:
         case SLIME_MODE:
@@ -244,11 +247,9 @@ int main(int argc, char **argv) {
             run_proc = &run_slime;
             finalize_proc = &finalize_slime;
             mode_data = (void*)malloc(sizeof(Slime));
+            mode_data_count = AGENTS_COUNT;
             break;
-
-
     }
-
 
     int tex_order = 1;
 
@@ -270,7 +271,7 @@ int main(int argc, char **argv) {
     // program and shader handles
     GLuint shader_program = generateRenderProgram();
 
-    init_proc(mode_data, AGENTS_COUNT);
+    init_proc(mode_data, mode_data_count);
 
     // we are blending so no depth testing
     glDisable(GL_DEPTH_TEST);
