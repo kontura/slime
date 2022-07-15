@@ -54,8 +54,8 @@ void initialize_slime(void * mode_data, int count) {
     glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, ssbos);
 
     // create program
-    slime->acceleration_program = generateComputeProgram("../src/compute_shader.glsl");
-    slime->evaporate_program = generateComputeProgram("../src//evaporate_shader.glsl");
+    slime->acceleration_program = generateComputeProgram("../src/shaders/slime/slime.glsl");
+    slime->evaporate_program = generateComputeProgram("../src/shaders/evaporate.glsl");
 
     // setup uniforms
     glUseProgram(slime->acceleration_program);

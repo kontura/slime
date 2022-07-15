@@ -23,8 +23,8 @@ void initialize_spectrum(void * mode_data, int count) {
     glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, ssbos);
 
     // create program
-    spectrum->spectrum_program = generateComputeProgram("../src/spectrum_shader.glsl");
-    spectrum->evaporate_program = generateComputeProgram("../src//evaporate_shader.glsl");
+    spectrum->spectrum_program = generateComputeProgram("../src/shaders/spectrum/spectrum.glsl");
+    spectrum->evaporate_program = generateComputeProgram("../src/shaders/evaporate.glsl");
 
     glUseProgram(spectrum->spectrum_program);
     glUniform1i(glGetUniformLocation(spectrum->spectrum_program, "width"), WIDTH);
