@@ -52,7 +52,42 @@ GLuint generateComputeProgram(const char* path) {
     GLuint program = glCreateProgram();
     GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
 
-    std::string shader_source = read_file(path);
+    std::string shader_lang_version = "#version 430\n";
+
+    std::string shader_source = shader_lang_version + read_file(path);
+    // create and compiler vertex shader
+    const char *source = shader_source.c_str();
+    int length = shader_source.size();
+    glShaderSource(compute_shader, 1, &source, &length);
+    glCompileShader(compute_shader);
+    if(!check_shader_compile_status(compute_shader)) {
+        return 0;
+    }
+
+    // attach shaders
+    glAttachShader(program, compute_shader);
+
+    // link the program and check for errors
+    glLinkProgram(program);
+    check_program_link_status(program);
+
+    glDeleteShader(compute_shader);
+    checkOpenGLErrors("generateComputeProgram");
+    return program;
+}
+
+GLuint generateComputeProgram(std::vector<const char*> paths) {
+    GLuint program = glCreateProgram();
+    GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
+
+    std::string shader_source;
+    std::string shader_lang_version = "#version 430\n";
+    shader_source.append(shader_lang_version);
+
+    for (auto & path : paths) {
+        shader_source.append(read_file(path));
+        shader_source.append(std::string{"\n"});
+    }
     // create and compiler vertex shader
     const char *source = shader_source.c_str();
     int length = shader_source.size();

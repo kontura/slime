@@ -1,5 +1,3 @@
-#version 430
-
 layout(local_size_x=20, local_size_y=20) in;
 
 layout(location = 0) uniform float dt;

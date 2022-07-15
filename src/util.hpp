@@ -14,3 +14,4 @@ void checkOpenGLErrors(const char *location);
 bool check_shader_compile_status(GLuint obj);
 bool check_program_link_status(GLuint obj);
 GLuint generateComputeProgram(const char* path);
+GLuint generateComputeProgram(std::vector<const char*> paths);
