@@ -94,6 +94,9 @@ void initialize_pulse(void *userdata) {
     const int frag_size = FFTW_SAMPLES * 2 * 16 / 8 * 2; // we double this because of cpu performance issues with pulseaudio
 
     pa_buffer_attr pb = {.maxlength = (uint32_t)-1, // BUFSIZE * 2,
+                         .tlength = 0, //playback only, added just to supress warning of missing initializer
+                         .prebuf = 0, //playback only, added just to supress warning of missing initializer
+                         .minreq = 0, //playback only, added just to supress warning of missing initializer
                          .fragsize = frag_size};
 
     int error;

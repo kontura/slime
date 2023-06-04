@@ -295,7 +295,7 @@ int main(int argc, char **argv) {
     double *in_raw_fftw_r = NULL;
     fftw_plan fftw_plan_l, fftw_plan_r;
     fftw_complex *out_complex_l, *out_complex_r;
-    PulseAudioContext pac = {0};
+    PulseAudioContext pac = {0, 0, {0}};
     in_raw_fftw_l = fftw_alloc_real(FFTW_BUFFER_SIZE);
     in_raw_fftw_r = fftw_alloc_real(FFTW_BUFFER_SIZE);
     out_complex_l = fftw_alloc_complex(FFTW_BUFFER_SIZE/2 + 1);
