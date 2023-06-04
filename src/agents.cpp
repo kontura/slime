@@ -192,22 +192,24 @@ int main(int argc, char **argv) {
     char *cmdline_file_input_path = NULL;
     int opt;
 
-    while ((opt = getopt(argc, argv, "f:lsd")) != -1) {
+    while ((opt = getopt(argc, argv, "f:m:")) != -1) {
         switch (opt) {
             case 'f':
                 cmdline_file_input_path = optarg;
                 break;
-            case 'l':
-                mode = SLIME_MODE;
-                break;
-            case 's':
-                mode = SPECTRUM_MODE;
-                break;
-            case 'd':
-                mode = FLUID_MODE;
+            case 'm':
+                if (!strcmp(optarg, "slime")) {
+                    mode = SLIME_MODE;
+                } else if (!strcmp(optarg, "spectrum")) {
+                    mode = SPECTRUM_MODE;
+                } else if (!strcmp(optarg, "fluid")) {
+                    mode = FLUID_MODE;
+                }
                 break;
             default:
-                fprintf(stderr, "Usage: %s [-f FILE] [-l] [-s]\n", argv[0]);
+                fprintf(stderr, "Usage: %s [-f FILE] [-m <mode>]\n", argv[0]);
+                fprintf(stderr, "-f input file mp2\n");
+                fprintf(stderr, "-m which mode to use <slime,spectrum,fluid>\n");
                 exit(EXIT_FAILURE);
         }
     }
