@@ -92,13 +92,13 @@ void decode(Decoder *decoder) {
         }
 
 
-        size_t new_samples_bytes_count = decoder->context->channels * decoder->decoded_frame->nb_samples * data_size;
+        size_t new_samples_bytes_count = decoder->context->ch_layout.nb_channels * decoder->decoded_frame->nb_samples * data_size;
         decoder->samples_buffer = (uint8_t*) realloc(decoder->samples_buffer, decoder->samples_buffer_count + new_samples_bytes_count);
 
         size_t total = 0;
         for (i = 0; i < decoder->decoded_frame->nb_samples; i++)
-            for (ch = 0; ch < decoder->context->channels; ch++) {
                 total += data_size;
+            for (ch = 0; ch < decoder->context->ch_layout.nb_channels; ch++) {
                 memmove(decoder->samples_buffer + decoder->samples_buffer_count,
                         decoder->decoded_frame->data[ch] + data_size*i,
                         data_size);

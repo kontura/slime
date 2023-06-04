@@ -51,30 +51,25 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
     }
     ost->enc = c;
 
+
     switch ((*codec)->type) {
     case AVMEDIA_TYPE_AUDIO:
-        c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
-        c->bit_rate    = 64000;
-        c->sample_rate = OUTPUT_AUDIO_SAMPLE_RATE;
-        if ((*codec)->supported_samplerates) {
-            c->sample_rate = (*codec)->supported_samplerates[0];
-            for (i = 0; (*codec)->supported_samplerates[i]; i++) {
-                if ((*codec)->supported_samplerates[i] == OUTPUT_AUDIO_SAMPLE_RATE)
-                    c->sample_rate = OUTPUT_AUDIO_SAMPLE_RATE;
+        {
+            c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
+            c->bit_rate    = 64000;
+            c->sample_rate = OUTPUT_AUDIO_SAMPLE_RATE;
+            if ((*codec)->supported_samplerates) {
+                c->sample_rate = (*codec)->supported_samplerates[0];
+                for (i = 0; (*codec)->supported_samplerates[i]; i++) {
+                    if ((*codec)->supported_samplerates[i] == OUTPUT_AUDIO_SAMPLE_RATE)
+                        c->sample_rate = OUTPUT_AUDIO_SAMPLE_RATE;
+                }
             }
+            AVChannelLayout ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+            av_channel_layout_copy(&c->ch_layout, &ch_layout);
+            ost->st->time_base = (AVRational){ 1, c->sample_rate };
+            break;
         }
-        c->channels        = av_get_channel_layout_nb_channels(c->channel_layout);
-        c->channel_layout = AV_CH_LAYOUT_STEREO;
-        if ((*codec)->channel_layouts) {
-            c->channel_layout = (*codec)->channel_layouts[0];
-            for (i = 0; (*codec)->channel_layouts[i]; i++) {
-                if ((*codec)->channel_layouts[i] == AV_CH_LAYOUT_STEREO)
-                    c->channel_layout = AV_CH_LAYOUT_STEREO;
-            }
-        }
-        c->channels        = av_get_channel_layout_nb_channels(c->channel_layout);
-        ost->st->time_base = (AVRational){ 1, c->sample_rate };
-        break;
 
     case AVMEDIA_TYPE_VIDEO:
         c->codec_id = codec_id;
@@ -186,7 +181,7 @@ static void open_video(const AVCodec *codec, OutputStream *ost, AVDictionary *op
 }
 
 static AVFrame *alloc_audio_frame(enum AVSampleFormat sample_fmt,
-                                  uint64_t channel_layout,
+                                  AVChannelLayout channel_layout,
                                   int sample_rate, int nb_samples)
 {
     AVFrame *frame = av_frame_alloc();
@@ -198,7 +193,9 @@ static AVFrame *alloc_audio_frame(enum AVSampleFormat sample_fmt,
     }
 
     frame->format = sample_fmt;
-    frame->channel_layout = channel_layout;
+    ret = av_channel_layout_copy(&frame->ch_layout, &channel_layout);
+    if (ret < 0)
+        exit(1);
     frame->sample_rate = sample_rate;
     frame->nb_samples = nb_samples;
 
@@ -239,9 +236,9 @@ static void open_audio(const AVCodec *codec, OutputStream *ost, AVDictionary *op
         printf("invariable size: %i\n", c->frame_size);
     }
 
-    ost->frame     = alloc_audio_frame(c->sample_fmt, c->channel_layout,
+    ost->frame     = alloc_audio_frame(c->sample_fmt, c->ch_layout,
                                        c->sample_rate, nb_samples);
-    ost->tmp_frame = alloc_audio_frame(AV_SAMPLE_FMT_S16, c->channel_layout,
+    ost->tmp_frame = alloc_audio_frame(AV_SAMPLE_FMT_S16, c->ch_layout,
                                        c->sample_rate, nb_samples);
 
     /* copy the stream parameters to the muxer */
@@ -257,12 +254,14 @@ static void open_audio(const AVCodec *codec, OutputStream *ost, AVDictionary *op
         fprintf(stderr, "Could not allocate resampler context\n");
         exit(1);
     }
+    AVChannelLayout src_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+    AVChannelLayout dst_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
 
     /* set options */
-    av_opt_set_int       (ost->swr_ctx, "in_channel_count",   c->channels,       0);
+    av_opt_set_chlayout  (ost->swr_ctx, "in_chlayout",        &src_ch_layout,    0);
     av_opt_set_int       (ost->swr_ctx, "in_sample_rate",     c->sample_rate,    0);
     av_opt_set_sample_fmt(ost->swr_ctx, "in_sample_fmt",      AV_SAMPLE_FMT_S16, 0);
-    av_opt_set_int       (ost->swr_ctx, "out_channel_count",  c->channels,       0);
+    av_opt_set_chlayout  (ost->swr_ctx, "out_chlayout",       &dst_ch_layout,    0);
     av_opt_set_int       (ost->swr_ctx, "out_sample_rate",    c->sample_rate,    0);
     av_opt_set_sample_fmt(ost->swr_ctx, "out_sample_fmt",     c->sample_fmt,     0);
 
