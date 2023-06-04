@@ -190,12 +190,13 @@ enum graphic_mode{SLIME_MODE, SPECTRUM_MODE, FLUID_MODE};
 int main(int argc, char **argv) {
     graphic_mode mode = SLIME_MODE;
     char *cmdline_file_input_path = NULL;
+    char *cmdline_file_output_path = NULL;
     int opt;
 
-    while ((opt = getopt(argc, argv, "f:m:")) != -1) {
+    while ((opt = getopt(argc, argv, "i:m:o:")) != -1) {
         switch (opt) {
-            case 'f':
-                cmdline_file_input_path = optarg;
+            case 'i':
+                cmdline_file_input_path = strdup(optarg);
                 break;
             case 'm':
                 if (!strcmp(optarg, "slime")) {
@@ -206,9 +207,13 @@ int main(int argc, char **argv) {
                     mode = FLUID_MODE;
                 }
                 break;
+            case 'o':
+                cmdline_file_output_path = strdup(optarg);
+                break;
             default:
-                fprintf(stderr, "Usage: %s [-f FILE] [-m <mode>]\n", argv[0]);
-                fprintf(stderr, "-f input file mp2\n");
+                fprintf(stderr, "Usage: %s [-f <in_file>] [-m <mode>] [-o <out_file>]\n", argv[0]);
+                fprintf(stderr, "-i input mp2 file\n");
+                fprintf(stderr, "-o output m4a file\n");
                 fprintf(stderr, "-m which mode to use <slime,spectrum,fluid>\n");
                 exit(EXIT_FAILURE);
         }
@@ -308,18 +313,23 @@ int main(int argc, char **argv) {
     fftw_plan_r = fftw_plan_dft_r2c_1d(FFTW_BUFFER_SIZE, in_raw_fftw_r, out_complex_r, FFTW_MEASURE);
     if (cmdline_file_input_path != NULL) {
         ffmpeg_decoder = decoder_new(cmdline_file_input_path);
-
-        const char *my_suffix = "_slime.m4a";
-        char *last_dot_in_input = strrchr(cmdline_file_input_path, '.');
-        *last_dot_in_input = '\0';
-        size_t len = strlen(cmdline_file_input_path) + strlen(my_suffix);
-        char *dest_name = (char*)malloc(len);
-        sprintf(dest_name, "%s%s", cmdline_file_input_path, my_suffix);
-
-        ffmpeg_encoder = encoder_new(dest_name);
-        free(dest_name);
     } else {
         initialize_pulse((void *) &pac);
+    }
+
+    if (cmdline_file_output_path != NULL) {
+        const char *my_suffix = ".m4a";
+        size_t len = strlen(cmdline_file_output_path) - strlen(my_suffix);
+        char *dest_name = NULL;
+        if (!strcmp(cmdline_file_output_path + len, my_suffix)){
+            ffmpeg_encoder = encoder_new(cmdline_file_output_path);
+        } else {
+            char *dest_name = (char*)malloc(strlen(cmdline_file_output_path) + strlen(my_suffix));
+            sprintf(dest_name, "%s%s", cmdline_file_output_path, my_suffix);
+            ffmpeg_encoder = encoder_new(dest_name);
+            free(dest_name);
+        }
+
     }
 
     unsigned char *pic = (unsigned char*) malloc(WIDTH*HEIGHT*3);
@@ -370,7 +380,7 @@ int main(int argc, char **argv) {
         checkOpenGLErrors("Main Loop");
 
         //capture video
-        if (cmdline_file_input_path) {
+        if (cmdline_file_output_path) {
             if (av_frame_make_writable(ffmpeg_encoder->video_st.frame) < 0) {
                 fprintf(stderr, "Failed to make encoder frame writable \n");
                 exit(1);
